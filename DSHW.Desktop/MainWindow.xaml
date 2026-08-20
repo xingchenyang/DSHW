@@ -10,12 +10,11 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 自定义标题栏 -->
+        <!-- 自定义标题栏（右侧 180px 预留给系统最小化/最大化/关闭按钮，避免内容重叠） -->
         <Grid Grid.Row="0" Background="#1A1A1A">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0"
@@ -30,21 +29,10 @@
                        x:Name="StatusText"
                        x:Uid="StatusText"
                        Text="启动中..."
-                       Margin="16,0,0,0"
+                       Margin="16,0,180,0"
                        VerticalAlignment="Center"
                        Foreground="#999999"
                        FontSize="12"/>
-
-            <Button Grid.Column="2"
-                    Content="✕"
-                    Background="Transparent"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Width="48"
-                    Height="48"
-                    FontSize="16"
-                    x:Uid="CloseButton"
-                    Click="CloseButton_Click"/>
         </Grid>
 
         <!-- WebView2 主体 -->

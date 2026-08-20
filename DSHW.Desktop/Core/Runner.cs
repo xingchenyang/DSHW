@@ -41,10 +41,23 @@ namespace DSHW.Desktop.Core
                     return false;
                 }
 
+                // -y：npx 首次运行会自动确认安装（无 stdin 的进程里交互提示会失败导致 DSH 退出）
+                // 输出重定向到 %LOCALAPPDATA%\DSHW\dsh.log（单文件 exe 的 BaseDirectory 是临时解压目录，不可靠）
+                var logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DSHW");
+                string logPath;
+                try
+                {
+                    System.IO.Directory.CreateDirectory(logDir);
+                    logPath = System.IO.Path.Combine(logDir, "dsh.log");
+                }
+                catch
+                {
+                    logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dsh.log");
+                }
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/c npx @deepseek-ai/dsh web",
+                    Arguments = $"/c npx -y @deepseek-ai/dsh web 1> \"{logPath}\" 2>&1",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden

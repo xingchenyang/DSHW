@@ -22,9 +22,6 @@
   <data name="StatusText.Text" xml:space="preserve">
     <value>启动中...</value>
   </data>
-  <data name="CloseButton.Content" xml:space="preserve">
-    <value>✕</value>
-  </data>
   
   <!-- 状态栏 -->
   <data name="Status.Starting" xml:space="preserve">

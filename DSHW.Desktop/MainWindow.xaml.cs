@@ -16,6 +16,8 @@ namespace DSHW.Desktop
     {
         private Runner? _runner;
         private bool _isWebViewReady = false;
+        private bool _hasNavigatedToWebUi = false;
+        private bool _uiLoadedSuccessfully = false;   // UI 已成功加载（此后不再被进程退出降级）
 
         public MainWindow()
         {
@@ -44,6 +46,19 @@ namespace DSHW.Desktop
                 {
                     appWindow.SetIcon(iconPath);
                 }
+
+                // 标题栏按钮显式配色（深色栏 + 白色按钮，聚焦时可见；否则跟随系统浅色主题会不可见）
+                // 参考：https://learn.microsoft.com/windows/apps/develop/title-bar
+                var titleBar = appWindow.TitleBar;
+                titleBar.ButtonForegroundColor = Microsoft.UI.Colors.White;
+                titleBar.ButtonHoverForegroundColor = Microsoft.UI.Colors.White;
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(255, 0x3D, 0x3D, 0x3D);
+                titleBar.ButtonPressedForegroundColor = Microsoft.UI.Colors.White;
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(255, 0x2A, 0x2A, 0x2A);
+                titleBar.InactiveForegroundColor = Windows.UI.Color.FromArgb(255, 0x99, 0x99, 0x99);
+
+                // 标题栏高度与自定义 48px 栏匹配（Win11 生效；Win10 回退为标准高度）
+                titleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
             }
 
             this.Closed += OnWindowClosed;
@@ -92,7 +107,19 @@ namespace DSHW.Desktop
                 WebView.CoreWebView2.NavigationCompleted += (s, e) =>
                 {
                     _isWebViewReady = true;
-                    UpdateStatus("Status.Ready");
+                    // 只在真正导航到 DSH UI 后更新状态（初始空白页不算）
+                    if (_hasNavigatedToWebUi)
+                    {
+                        if (e.IsSuccess)
+                        {
+                            _uiLoadedSuccessfully = true;
+                            UpdateStatus("Status.Ready");
+                        }
+                        else if (!_uiLoadedSuccessfully)
+                        {
+                            UpdateStatus("Status.Stopped");
+                        }
+                    }
                 };
                 await LoadWebUI();
             }
@@ -116,6 +143,7 @@ namespace DSHW.Desktop
             if (_runner.IsRunning)
             {
                 UpdateStatus("Status.LoadingUI");
+                _hasNavigatedToWebUi = true;
                 WebView.Source = new Uri(_runner.WebUIUrl);
             }
             else
@@ -132,7 +160,7 @@ namespace DSHW.Desktop
                 {
                     _ = LoadWebUI();
                 }
-                else if (!e.IsRunning)
+                else if (!e.IsRunning && !_uiLoadedSuccessfully)
                 {
                     UpdateStatus("Status.Stopped");
                 }
@@ -147,16 +175,11 @@ namespace DSHW.Desktop
                 {
                     _ = LoadWebUI();
                 }
-                else if (!e.IsRunning)
+                else if (!e.IsRunning && !_uiLoadedSuccessfully)
                 {
                     UpdateStatus("Status.Stopped");
                 }
             });
-        }
-
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            Application.Current.Exit();
         }
 
         private void OnWindowClosed(object sender, WindowEventArgs args)

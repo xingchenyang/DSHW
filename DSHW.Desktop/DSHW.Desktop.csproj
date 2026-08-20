@@ -36,7 +36,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <!-- 拆分包（不用 Microsoft.WindowsAppSDK 元包，避免拖入 AI/ML/Search/Widgets 等未使用库，显著减小发布体积）
+         版本需与 Runtime 2.4.0 的组件期望一致（见 Microsoft.WindowsAppSDK.ComponentReference.targets） -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="2.3.9" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.6" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.4.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.6" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="2.1.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
@@ -57,6 +63,16 @@
   <Target Name="CopyPriAsResourcesPri" AfterTargets="Build">
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri"
           DestinationFiles="$(TargetDir)resources.pri"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 发布（dotnet publish 文件夹版）时也会复制 pri，否则 WinUI 启动崩溃（XAML 资源缺失） -->
+  <Target Name="CopyPriToPublish" AfterTargets="Publish">
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri"
+          DestinationFiles="$(PublishDir)resources.pri"
           SkipUnchangedFiles="true" />
   </Target>
 </Project>
