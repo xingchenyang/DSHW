@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DSHW.Desktop (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "DSHW.Desktop (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -1,0 +1,44 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[pP]ublish/
+[Rr]elease/
+[Dd]ebug/
+x64/
+x86/
+
+# User-specific
+*.DotSettings.user
+*.tmp
+*.temp
+*.cache
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Project-specific
+releases/
+publish/
+lang.config
+settings.config
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# WebView2 cache
+WebView2/
