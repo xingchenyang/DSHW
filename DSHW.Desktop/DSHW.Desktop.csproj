@@ -15,7 +15,9 @@
   
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
-  
+    <!-- 默认语言 en-US：法语/中文系统走对应 .resw，其他语言系统回退英语 -->
+    <DefaultLanguage>en-US</DefaultLanguage>
+
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   
@@ -30,9 +32,15 @@
     <Authors>xingchenyang</Authors>
     <Copyright>Copyright © 2026 xingchenyang</Copyright>
   
-    <!-- 发布配置见 Properties\PublishProfiles\win-x64.pubxml（单文件自包含） -->
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <!-- 发布配置见 Properties\PublishProfiles\（full / single / lite） -->
+    <PublishProfile>full.pubxml</PublishProfile>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 发布输出目录不参与 SDK 默认内容/None 扫描（否则会被打包进单文件 exe，导致体积膨胀+嵌套）。
+         注意：DefaultItemExcludes 是属性，不是 ItemGroup！ -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);release\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

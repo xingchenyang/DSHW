@@ -8,10 +8,11 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="24"/>
         </Grid.RowDefinitions>
 
-        <!-- 自定义标题栏（右侧 180px 预留给系统最小化/最大化/关闭按钮，避免内容重叠） -->
-        <Grid Grid.Row="0" Background="#1A1A1A">
+        <!-- 自定义标题栏（浅色；右侧 180px 预留给系统最小化/最大化/关闭按钮） -->
+        <Grid Grid.Row="0" Background="#F3F3F3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -21,21 +22,47 @@
                        Text="DSHW"
                        Margin="16,0,0,0"
                        VerticalAlignment="Center"
-                       Foreground="White"
+                       Foreground="#1A1A1A"
                        FontSize="16"
                        FontWeight="SemiBold"/>
 
+            <!-- 标题栏右侧简短状态（如 "● Prêt"） -->
             <TextBlock Grid.Column="1"
                        x:Name="StatusText"
                        x:Uid="StatusText"
-                       Text="启动中..."
+                       Text="Starting..."
                        Margin="16,0,180,0"
                        VerticalAlignment="Center"
-                       Foreground="#999999"
+                       Foreground="#666666"
                        FontSize="12"/>
         </Grid>
 
         <!-- WebView2 主体 -->
         <controls:WebView2 x:Name="WebView" Grid.Row="1"/>
+
+        <!-- 底部状态栏：左侧详细消息（超长省略 + 悬停全文），右侧双版本 -->
+        <Grid Grid.Row="2" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       x:Name="DetailStatusText"
+                       Text=""
+                       Margin="12,0,12,0"
+                       VerticalAlignment="Center"
+                       Foreground="#666666"
+                       FontSize="11"
+                       TextTrimming="CharacterEllipsis"/>
+
+            <TextBlock Grid.Column="1"
+                       x:Name="VersionText"
+                       Text="DSHW 0.1.0 · DSH --"
+                       Margin="12,0,16,0"
+                       VerticalAlignment="Center"
+                       Foreground="#999999"
+                       FontSize="11"/>
+        </Grid>
     </Grid>
 </Window>

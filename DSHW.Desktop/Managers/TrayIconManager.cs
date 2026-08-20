@@ -66,6 +66,75 @@ namespace DSHW.Desktop.Managers
         [DllImport("user32.dll")]
         private static extern bool DestroyIcon(IntPtr hIcon);
 
+        // --- 托盘右键菜单（纯 Win32） ---
+        public enum TrayMenuCommand
+        {
+            None = 0,
+            Show = 1,
+            Hide = 2,
+            About = 3,
+            Exit = 4
+        }
+
+        private const uint MF_STRING = 0x00000000;
+        private const uint MF_SEPARATOR = 0x00000800;
+        private const uint TPM_RETURNCMD = 0x00000100;
+        private const uint TPM_NONOTIFY = 0x00000080;
+        private const uint TPM_LEFTALIGN = 0x00000000;
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr CreatePopupMenu();
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, uint uIDNewItem, string lpNewItem);
+
+        [DllImport("user32.dll")]
+        private static extern bool DestroyMenu(IntPtr hMenu);
+
+        [DllImport("user32.dll")]
+        private static extern uint TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hWnd, IntPtr prcRect);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        private const uint WM_NULL = 0x0000;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT { public int X; public int Y; }
+
+        /// <summary>在光标位置弹出右键菜单并返回所选命令（阻塞直到菜单关闭）。</summary>
+        public TrayMenuCommand ShowContextMenu()
+        {
+            var menu = CreatePopupMenu();
+            try
+            {
+                AppendMenuW(menu, MF_STRING, (uint)TrayMenuCommand.Show, ResourceHelper.GetString("Tray.Show", "Show Window"));
+                AppendMenuW(menu, MF_STRING, (uint)TrayMenuCommand.Hide, ResourceHelper.GetString("Tray.Hide", "Hide Window"));
+                AppendMenuW(menu, MF_SEPARATOR, 0, "");
+                AppendMenuW(menu, MF_STRING, (uint)TrayMenuCommand.About, ResourceHelper.GetString("Tray.About", "About DSHW"));
+                AppendMenuW(menu, MF_SEPARATOR, 0, "");
+                AppendMenuW(menu, MF_STRING, (uint)TrayMenuCommand.Exit, ResourceHelper.GetString("Tray.Exit", "Exit"));
+
+                // 菜单要能响应键盘/失焦：先置前台，弹出后发 WM_NULL 复位
+                SetForegroundWindow(_hwnd);
+                GetCursorPos(out var pt);
+                uint cmd = TrackPopupMenu(menu, TPM_LEFTALIGN | TPM_RETURNCMD | TPM_NONOTIFY, pt.X, pt.Y, 0, _hwnd, IntPtr.Zero);
+                PostMessage(_hwnd, WM_NULL, IntPtr.Zero, IntPtr.Zero);
+
+                return (TrayMenuCommand)cmd;
+            }
+            finally
+            {
+                DestroyMenu(menu);
+            }
+        }
+
         /// <summary>
         /// 加载应用图标：优先从当前 exe 提取（确保与文件图标一致），失败时回退系统默认图标。
         /// </summary>

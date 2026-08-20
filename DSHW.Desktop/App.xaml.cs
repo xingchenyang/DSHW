@@ -62,17 +62,43 @@ namespace DSHW.Desktop
             {
                 if (lParam == (IntPtr)WM_LBUTTONDBLCLK)
                 {
-                    _window?.Activate();
+                    _window?.ShowWindow();
                     return IntPtr.Zero;
                 }
                 else if (lParam == (IntPtr)WM_RBUTTONUP)
                 {
-                    // TODO: 显示托盘右键菜单（显示/隐藏/退出）
+                    var cmd = _trayManager?.ShowContextMenu() ?? Managers.TrayIconManager.TrayMenuCommand.None;
+                    switch (cmd)
+                    {
+                        case Managers.TrayIconManager.TrayMenuCommand.Show:
+                            _window?.ShowWindow();
+                            break;
+                        case Managers.TrayIconManager.TrayMenuCommand.Hide:
+                            _window?.HideWindow();
+                            break;
+                        case Managers.TrayIconManager.TrayMenuCommand.About:
+                            ShowAbout();
+                            break;
+                        case Managers.TrayIconManager.TrayMenuCommand.Exit:
+                            _window?.RequestExit();
+                            break;
+                    }
                     return IntPtr.Zero;
                 }
             }
 
             return CallWindowProc(_oldWndProc, hWnd, msg, wParam, lParam);
+        }
+
+        private AboutWindow? _aboutWindow;
+        private void ShowAbout()
+        {
+            if (_aboutWindow == null)
+            {
+                _aboutWindow = new AboutWindow(_runner?.DshVersion);
+                _aboutWindow.Closed += (s, e) => _aboutWindow = null;
+            }
+            _aboutWindow.Activate();
         }
 
         private void OnRunnerStatusChanged(object? sender, RunnerStatusEventArgs e)

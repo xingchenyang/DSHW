@@ -65,6 +65,23 @@
   <data name="Tray.Tooltip" xml:space="preserve">
     <value>DSHW - DSH Workbench</value>
   </data>
+  <data name="Tray.About" xml:space="preserve">
+    <value>About DSHW</value>
+  </data>
+
+  <!-- 关于窗口 -->
+  <data name="About.Title" xml:space="preserve">
+    <value>About DSHW</value>
+  </data>
+  <data name="About.Tagline" xml:space="preserve">
+    <value>DSH Workbench for Windows</value>
+  </data>
+  <data name="About.Description" xml:space="preserve">
+    <value>A WinUI 3 + WebView2 desktop client for DSH.</value>
+  </data>
+  <data name="About.Copyright" xml:space="preserve">
+    <value>Copyright © 2026 xingchenyang · MIT License</value>
+  </data>
   
   <!-- 对话框 -->
   <data name="Dialog.Confirm" xml:space="preserve">

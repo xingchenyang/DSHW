@@ -1,0 +1,34 @@
+<Window x:Class="DSHW.Desktop.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="">
+
+    <StackPanel Padding="28" Spacing="10" MaxWidth="420">
+        <TextBlock Text="DSHW"
+                   FontSize="22"
+                   FontWeight="SemiBold"
+                   Foreground="#1A1A1A"/>
+
+        <TextBlock x:Name="VersionText"
+                   FontSize="12"
+                   Foreground="#666666"/>
+
+        <TextBlock x:Name="TaglineText"
+                   FontSize="12"
+                   Foreground="#666666"
+                   TextWrapping="Wrap"/>
+
+        <TextBlock x:Name="DescriptionText"
+                   FontSize="12"
+                   Foreground="#666666"
+                   TextWrapping="Wrap"/>
+
+        <HyperlinkButton x:Name="GitHubLink"
+                         Content="https://github.com/xingchenyang/DSHW"
+                         NavigateUri="https://github.com/xingchenyang/DSHW"/>
+
+        <TextBlock x:Name="CopyrightText"
+                   FontSize="11"
+                   Foreground="#999999"/>
+    </StackPanel>
+</Window>
