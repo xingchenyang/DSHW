@@ -1,50 +1,86 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+﻿using Microsoft.UI.Xaml;
+using DSHW.Desktop.Core;
+using DSHW.Desktop.Managers;
+using Microsoft.Windows.ApplicationModel.Resources;
+using System;
+using System.Runtime.InteropServices;
+using WinRT.Interop;
 
 namespace DSHW.Desktop
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App : Application
     {
-        private Window? _window;
+        private Runner? _runner;
+        private TrayIconManager? _trayManager;
+        private MainWindow? _window;
+        private IntPtr _hwnd;
+        private IntPtr _oldWndProc;
 
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
-        public App()
-        {
-            InitializeComponent();
-        }
+        private const int WM_TRAYICON = 0x0400 + 100;
+        private const int WM_LBUTTONDBLCLK = 0x0203;
+        private const int WM_RBUTTONUP = 0x0205;
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        private const int GWLP_WNDPROC = -4;
+
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             _window = new MainWindow();
+            _runner = new Runner();
+            _trayManager = new TrayIconManager(_window);
+
+            _runner.OnStatusChanged += OnRunnerStatusChanged;
+
+            _window.SetRunner(_runner);
+            _window.Closed += OnWindowClosed;
             _window.Activate();
+
+            _ = _runner.RunAsync();
+
+            _hwnd = WindowNative.GetWindowHandle(_window);
+            var newWndProc = Marshal.GetFunctionPointerForDelegate<WndProcDelegate>(WndProc);
+            _oldWndProc = SetWindowLongPtr(_hwnd, GWLP_WNDPROC, newWndProc);
+        }
+
+        private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+        {
+            if (msg == WM_TRAYICON)
+            {
+                if (lParam == (IntPtr)WM_LBUTTONDBLCLK)
+                {
+                    _window?.Activate();
+                    return IntPtr.Zero;
+                }
+                else if (lParam == (IntPtr)WM_RBUTTONUP)
+                {
+                    return IntPtr.Zero;
+                }
+            }
+
+            return CallWindowProc(_oldWndProc, hWnd, msg, wParam, lParam);
+        }
+
+        private void OnRunnerStatusChanged(object? sender, RunnerStatusEventArgs e)
+        {
+            _window?.UpdateRunnerStatus(e);
+        }
+
+        private void OnWindowClosed(object sender, WindowEventArgs args)
+        {
+            _runner?.Dispose();
+            _trayManager?.Dispose();
+
+            if (_hwnd != IntPtr.Zero && _oldWndProc != IntPtr.Zero)
+            {
+                SetWindowLongPtr(_hwnd, GWLP_WNDPROC, _oldWndProc);
+            }
         }
     }
 }

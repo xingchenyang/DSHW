@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- 应用标题 -->
+  <data name="App.Title" xml:space="preserve">
+    <value>DSHW</value>
+  </data>
+  
+  <!-- 状态栏 -->
+  <data name="Status.Starting" xml:space="preserve">
+    <value>Starting...</value>
+  </data>
+  <data name="Status.Running" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="Status.Stopped" xml:space="preserve">
+    <value>Stopped</value>
+  </data>
+  <data name="Status.Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Status.Waiting" xml:space="preserve">
+    <value>Waiting for DSH service...</value>
+  </data>
+  <data name="Status.LoadingUI" xml:space="preserve">
+    <value>Loading Web UI...</value>
+  </data>
+  <data name="Status.InitializingWebView" xml:space="preserve">
+    <value>Initializing WebView2...</value>
+  </data>
+  <data name="Status.NodeJsNotFound" xml:space="preserve">
+    <value>Node.js not found</value>
+  </data>
+  <data name="Status.WebViewError" xml:space="preserve">
+    <value>WebView2 error</value>
+  </data>
+  
+  <!-- 托盘菜单 -->
+  <data name="Tray.Show" xml:space="preserve">
+    <value>Show Window</value>
+  </data>
+  <data name="Tray.Hide" xml:space="preserve">
+    <value>Hide Window</value>
+  </data>
+  <data name="Tray.Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="Tray.Tooltip" xml:space="preserve">
+    <value>DSHW - DSH Workbench</value>
+  </data>
+  
+  <!-- 对话框 -->
+  <data name="Dialog.Confirm" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="Dialog.AreYouSure" xml:space="preserve">
+    <value>Are you sure?</value>
+  </data>
+  <data name="Dialog.Information" xml:space="preserve">
+    <value>Information</value>
+  </data>
+  <data name="Dialog.Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  
+  <!-- 通知 -->
+  <data name="Notification.DSHStarted" xml:space="preserve">
+    <value>DSH started successfully</value>
+  </data>
+  <data name="Notification.DSHStopped" xml:space="preserve">
+    <value>DSH stopped</value>
+  </data>
+  <data name="Notification.DSHCrashed" xml:space="preserve">
+    <value>DSH crashed, restarting...</value>
+  </data>
+</root>
