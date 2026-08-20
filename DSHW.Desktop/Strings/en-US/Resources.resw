@@ -18,6 +18,14 @@
     <value>DSHW</value>
   </data>
   
+  <!-- 主窗口 x:Uid（注：Window.Title 不支持 x:Uid，标题在 XAML 中硬编码） -->
+  <data name="StatusText.Text" xml:space="preserve">
+    <value>Starting...</value>
+  </data>
+  <data name="CloseButton.Content" xml:space="preserve">
+    <value>✕</value>
+  </data>
+  
   <!-- 状态栏 -->
   <data name="Status.Starting" xml:space="preserve">
     <value>Starting...</value>

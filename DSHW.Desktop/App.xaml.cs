@@ -1,7 +1,6 @@
-﻿using Microsoft.UI.Xaml;
 using DSHW.Desktop.Core;
 using DSHW.Desktop.Managers;
-using Microsoft.Windows.ApplicationModel.Resources;
+using Microsoft.UI.Xaml;
 using System;
 using System.Runtime.InteropServices;
 using WinRT.Interop;
@@ -15,10 +14,16 @@ namespace DSHW.Desktop
         private MainWindow? _window;
         private IntPtr _hwnd;
         private IntPtr _oldWndProc;
+        private WndProcDelegate? _wndProcDelegate; // 必须持有委托引用，防止被 GC 回收导致窗口消息处理崩溃
 
         private const int WM_TRAYICON = 0x0400 + 100;
         private const int WM_LBUTTONDBLCLK = 0x0203;
         private const int WM_RBUTTONUP = 0x0205;
+
+        public App()
+        {
+            this.InitializeComponent();
+        }
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
@@ -42,8 +47,10 @@ namespace DSHW.Desktop
 
             _ = _runner.RunAsync();
 
+            // 子类化窗口以接收托盘消息；委托必须保存为字段防止 GC 回收
             _hwnd = WindowNative.GetWindowHandle(_window);
-            var newWndProc = Marshal.GetFunctionPointerForDelegate<WndProcDelegate>(WndProc);
+            _wndProcDelegate = WndProc;
+            var newWndProc = Marshal.GetFunctionPointerForDelegate(_wndProcDelegate);
             _oldWndProc = SetWindowLongPtr(_hwnd, GWLP_WNDPROC, newWndProc);
         }
 
@@ -60,6 +67,7 @@ namespace DSHW.Desktop
                 }
                 else if (lParam == (IntPtr)WM_RBUTTONUP)
                 {
+                    // TODO: 显示托盘右键菜单（显示/隐藏/退出）
                     return IntPtr.Zero;
                 }
             }

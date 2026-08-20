@@ -36,6 +36,9 @@ publish/
 lang.config
 settings.config
 
+# dotnet CLI 临时 home（沙箱/CI 构建使用）
+.dotnet-home/
+
 # Node.js
 node_modules/
 npm-debug.log*

@@ -7,7 +7,7 @@ DSH Workbench for Windows
 [![Windows](https://img.shields.io/badge/Windows-10%2B-0078D6)](https://www.microsoft.com/windows)
 [![WinUI 3](https://img.shields.io/badge/WinUI-3-004578)](https://learn.microsoft.com/en-us/windows/apps/winui/)
 
-> 一个基于 WinUI 3 和 WebView2 的 Windows 桌面 Workbench，用于更方便地使用 DeepSeek Harness。
+> 一个基于 WinUI 3 和 WebView2 的 Windows 桌面 Workbench，用于更方便地使用 DSH。
 
 ## ✨ 特性
 

@@ -1,10 +1,10 @@
 using DSHW.Desktop.Core;
+using DSHW.Desktop.Helpers;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
-using Microsoft.Windows.ApplicationModel.Resources;
 using System;
 using System.Threading.Tasks;
 using Windows.Graphics;
@@ -16,7 +16,6 @@ namespace DSHW.Desktop
     {
         private Runner? _runner;
         private bool _isWebViewReady = false;
-        private readonly ResourceLoader _resourceLoader = new ResourceLoader();
 
         public MainWindow()
         {
@@ -38,6 +37,13 @@ namespace DSHW.Desktop
                     Width = 1200,
                     Height = 800
                 });
+
+                // 窗口图标（任务栏 / Alt-Tab / 窗口菜单），与 exe 图标保持一致
+                var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "logo.ico");
+                if (System.IO.File.Exists(iconPath))
+                {
+                    appWindow.SetIcon(iconPath);
+                }
             }
 
             this.Closed += OnWindowClosed;
@@ -50,10 +56,10 @@ namespace DSHW.Desktop
             _ = InitializeWebView();
         }
 
-        // 统一的更新状态方法
+        // 统一的更新状态方法（资源读取失败时回退到键名，避免崩溃）
         private void UpdateStatus(string resourceKey)
         {
-            var text = _resourceLoader.GetString(resourceKey);
+            var text = GetResourceString(resourceKey);
             DispatcherQueue.TryEnqueue(() =>
             {
                 StatusText.Text = text;
@@ -63,12 +69,18 @@ namespace DSHW.Desktop
         // 带参数的更新状态方法
         private void UpdateStatusWithArgs(string resourceKey, params object[] args)
         {
-            var format = _resourceLoader.GetString(resourceKey);
+            var format = GetResourceString(resourceKey);
             var text = string.Format(format, args);
             DispatcherQueue.TryEnqueue(() =>
             {
                 StatusText.Text = text;
             });
+        }
+
+        private static string GetResourceString(string resourceKey)
+        {
+            var text = ResourceHelper.GetString(resourceKey);
+            return string.IsNullOrEmpty(text) ? resourceKey : text;
         }
 
         private async Task InitializeWebView()

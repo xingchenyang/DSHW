@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -9,8 +10,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
   
-    <Platforms>x86;x64;ARM64</Platforms>
-    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
@@ -18,13 +19,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <!-- 版本信息（右键 exe → 属性 → 详细信息） -->
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Product>DSHW</Product>
+    <AssemblyTitle>DSHW</AssemblyTitle>
+    <Description>DSHW - DSH Workbench for Windows</Description>
+    <Company>xingchenyang</Company>
+    <Authors>xingchenyang</Authors>
+    <Copyright>Copyright © 2026 xingchenyang</Copyright>
   
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>false</SelfContained>
+    <!-- 发布配置见 Properties\PublishProfiles\win-x64.pubxml（单文件自包含） -->
+    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
@@ -43,8 +51,12 @@
     <None Update="Assets\logo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Resources\Languages\*.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
+
+  <!-- Unpackaged 模式约定：MRT Core 期望 exe 旁存在 resources.pri -->
+  <Target Name="CopyPriAsResourcesPri" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri"
+          DestinationFiles="$(TargetDir)resources.pri"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

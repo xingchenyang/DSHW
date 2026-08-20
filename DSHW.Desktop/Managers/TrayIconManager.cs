@@ -1,5 +1,5 @@
+using DSHW.Desktop.Helpers;
 using Microsoft.UI.Xaml;
-using Microsoft.Windows.ApplicationModel.Resources;
 using System;
 using System.Runtime.InteropServices;
 using WinRT.Interop;
@@ -12,7 +12,8 @@ namespace DSHW.Desktop.Managers
         private IntPtr _hwnd;
         private bool _disposed = false;
         private uint _trayIconId = 1001;
-        private readonly ResourceLoader _resourceLoader = new ResourceLoader();
+        private IntPtr _trayIconHandle = IntPtr.Zero;
+        private bool _trayIconOwned = false;
 
         // Win32 API 常量
         private const int WM_USER = 0x0400;
@@ -51,11 +52,35 @@ namespace DSHW.Desktop.Managers
             public IntPtr hBalloonIcon;
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        // 注意：Shell_NotifyIcon 在 shell32.dll（不是 user32.dll），且必须用 Unicode 版本
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         private static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpdata);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr LoadIcon(IntPtr hInstance, string lpIconName);
+
+        // 从 exe 中提取应用图标（与 csproj 的 ApplicationIcon 一致）
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        private static extern uint ExtractIconEx(string lpszFile, int nIconIndex, out IntPtr phiconLarge, out IntPtr phiconSmall, uint nIcons);
+
+        [DllImport("user32.dll")]
+        private static extern bool DestroyIcon(IntPtr hIcon);
+
+        /// <summary>
+        /// 加载应用图标：优先从当前 exe 提取（确保与文件图标一致），失败时回退系统默认图标。
+        /// </summary>
+        private IntPtr LoadAppIcon()
+        {
+            var exePath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(exePath) &&
+                ExtractIconEx(exePath, 0, out _, out var smallIcon, 1) > 0 &&
+                smallIcon != IntPtr.Zero)
+            {
+                _trayIconOwned = true;
+                return smallIcon;
+            }
+            return LoadIcon(IntPtr.Zero, "#32512");
+        }
 
         public TrayIconManager(Window window)
         {
@@ -66,15 +91,11 @@ namespace DSHW.Desktop.Managers
 
         private void CreateTrayIcon()
         {
-            // 加载默认应用图标 (IDI_APPLICATION = 32512)
-            IntPtr hIcon = LoadIcon(IntPtr.Zero, "#32512");
+            // 加载应用图标（从 exe 提取，失败回退系统默认）
+            _trayIconHandle = LoadAppIcon();
 
-            // 从资源文件获取工具提示文本
-            string tooltip = _resourceLoader.GetString("Tray.Tooltip");
-            if (string.IsNullOrEmpty(tooltip))
-            {
-                tooltip = "DSHW - DSH Workbench";
-            }
+            // 从资源文件获取工具提示文本（失败时回退到默认文案）
+            string tooltip = ResourceHelper.GetString("Tray.Tooltip", "DSHW - DSH Workbench");
 
             var data = new NOTIFYICONDATA
             {
@@ -83,7 +104,7 @@ namespace DSHW.Desktop.Managers
                 uID = _trayIconId,
                 uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
                 uCallbackMessage = WM_TRAYICON,
-                hIcon = hIcon,
+                hIcon = _trayIconHandle,
                 szTip = tooltip
             };
 
@@ -105,11 +126,7 @@ namespace DSHW.Desktop.Managers
         {
             if (string.IsNullOrEmpty(tooltip))
             {
-                tooltip = _resourceLoader.GetString("Tray.Tooltip");
-                if (string.IsNullOrEmpty(tooltip))
-                {
-                    tooltip = "DSHW - DSH Workbench";
-                }
+                tooltip = ResourceHelper.GetString("Tray.Tooltip", "DSHW - DSH Workbench");
             }
 
             var data = new NOTIFYICONDATA
@@ -127,6 +144,13 @@ namespace DSHW.Desktop.Managers
         {
             if (_disposed) return;
             RemoveTrayIcon();
+            // 仅销毁自己提取的图标句柄（系统默认图标无需销毁）
+            if (_trayIconOwned && _trayIconHandle != IntPtr.Zero)
+            {
+                DestroyIcon(_trayIconHandle);
+                _trayIconHandle = IntPtr.Zero;
+                _trayIconOwned = false;
+            }
             _disposed = true;
         }
     }
