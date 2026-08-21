@@ -85,7 +85,7 @@ namespace DSHW.Desktop
             this.Closed += OnWindowClosed;
 
             // 壳版本（程序集）；DSH 版本在 SetRunner 后再查（需要 Runner 就绪）
-            VersionText.Text = $"DSHW {GetShellVersion()} · DSH --";
+            VersionText.Content = $"DSHW {GetShellVersion()} · DSH --";
         }
 
         public AppWindow? AppWindowRef { get; private set; }
@@ -116,8 +116,33 @@ namespace DSHW.Desktop
         {
             _runner = runner;
             _runner.OnStatusChanged += OnStatusChanged;
+            _runner.OnDshNotInstalled += OnDshNotInstalled;
             _ = LoadDshVersionAsync();
             _ = InitializeWebView();
+        }
+
+        private InstallGuideWindow? _installGuide;
+        private void OnDshNotInstalled(object? sender, string? latestVersion)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_installGuide != null)
+                {
+                    _installGuide.Activate();
+                    return;
+                }
+                _installGuide = new InstallGuideWindow(latestVersion);
+                _installGuide.OnInstallSucceeded += () =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        _ = _runner?.RunAsync(); // 装好后再尝试启动
+                        _installGuide?.Close();
+                    });
+                };
+                _installGuide.Closed += (s, e) => _installGuide = null;
+                _installGuide.Activate();
+            });
         }
 
         private static string GetShellVersion()
@@ -133,14 +158,393 @@ namespace DSHW.Desktop
             }
         }
 
+        /// <summary>联网查最新版并刷新版本按钮。网络失败会静默（latest=null），不打扰。</summary>
         private async Task LoadDshVersionAsync()
         {
             var shellVersion = GetShellVersion();
-            var dshVersion = _runner != null ? await _runner.GetDshVersionAsync() : null;
-            DispatcherQueue.TryEnqueue(() =>
+            if (_runner != null)
             {
-                VersionText.Text = $"DSHW {shellVersion} · DSH {(string.IsNullOrEmpty(dshVersion) ? "--" : dshVersion)}";
+                await _runner.RefreshDshVersionAsync(checkLatest: true);
+            }
+            DispatcherQueue.TryEnqueue(() => ApplyVersionLabel(shellVersion));
+        }
+
+        private void ApplyVersionLabel(string shellVersion)
+        {
+            if (_runner == null)
+            {
+                VersionText.Content = $"DSHW {shellVersion} · DSH --";
+                VersionText.IsEnabled = false;
+                return;
+            }
+
+            var installed = _runner.InstalledVersion;
+            var latest = _runner.LatestVersion;
+            bool hasUpdate = !string.IsNullOrEmpty(installed)
+                             && !string.IsNullOrEmpty(latest)
+                             && !string.Equals(installed, latest, StringComparison.OrdinalIgnoreCase);
+
+            if (hasUpdate)
+            {
+                VersionText.Content = $"DSHW {shellVersion} · DSH {installed} → {latest}";
+            }
+            else
+            {
+                VersionText.Content = $"DSHW {shellVersion} · DSH {(string.IsNullOrEmpty(installed) ? "--" : installed)}";
+            }
+            // 版本按钮始终可点：无论是否检测到更新，都能打开版本/更新信息对话框。
+            // （不再把 IsEnabled 绑在"恰好这次联网查到差异"上，避免"偶尔能点开、关了再也点不开"。）
+            VersionText.IsEnabled = true;
+            VersionText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                hasUpdate ? Windows.UI.Color.FromArgb(255, 0xC5, 0x00, 0x00)
+                          : Windows.UI.Color.FromArgb(255, 0x99, 0x99, 0x99));
+        }
+
+        private ContentDialog? _updateDialog;
+        private TextBlock? _dialogInfoBlock; // 版本信息行，供重检/安装后原地更新（避免整树重建弄丢提示）
+        private bool _verboseLogs; // 版本更新命令是否用完整日志（verbose）
+        private bool _useMirror;   // 版本更新命令是否用镜像
+        private string _mirrorUrl = _MirrorDefault; // 版本更新命令的镜像地址
+        private const string _MirrorDefault = "https://registry.npmmirror.com";
+        // 版本/更新对话框重入护栏：一次只允许一个开关流程在跑，连点也不崩
+        private bool _dialogBusy;
+
+        private async void OnVersionClick(object sender, RoutedEventArgs e)
+        {
+            if (_dialogBusy) return;
+            _dialogBusy = true;
+            try
+            {
+                // 不阻塞 UI：先用当前已知版本立刻弹窗，网络刷新在后台跑，完成后再原地更新内容
+                await ShowVersionDialogAsync();
+                if (_updateDialog == null) return; // 已关闭
+                if (_runner != null)
+                {
+                    await _runner.RefreshDshVersionAsync(checkLatest: true);
+                }
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    ApplyVersionLabel(GetShellVersion());
+                    RefreshDialogContentInPlace();
+                });
+            }
+            finally
+            {
+                _dialogBusy = false;
+            }
+        }
+
+        /// <summary>版本/更新信息对话框：有更新则显示升级命令（可复制），无更新则显示"已是最新"。</summary>
+        private async Task ShowVersionDialogAsync()
+        {
+            var installed = _runner?.InstalledVersion;
+            var latest = _runner?.LatestVersion;
+            bool hasUpdate = !string.IsNullOrEmpty(installed)
+                             && !string.IsNullOrEmpty(latest)
+                             && !string.Equals(installed, latest, StringComparison.OrdinalIgnoreCase);
+            var dialog = new ContentDialog
+            {
+                Title = hasUpdate
+                    ? ResourceHelper.GetString("Update.Title", "DSH update available")
+                    : ResourceHelper.GetString("Update.UpToDateTitle", "DSH"),
+                PrimaryButtonText = ResourceHelper.GetString("Dialog.Close", "Close"),
+                XamlRoot = this.Content.XamlRoot,
+                Content = BuildDialogContent()
+            };
+            dialog.Closed += (s2, e2) => { _updateDialog = null; };
+            _updateDialog = dialog;
+            await dialog.ShowAsync();
+        }
+
+        /// <summary>不动对话框对象、原地重建其内容与标题（避免 Hide+Show 重建导致的重入崩溃）。</summary>
+        private void RefreshDialogContentInPlace()
+        {
+            try
+            {
+                if (_updateDialog == null) return;
+                var installed = _runner?.InstalledVersion;
+                var latest = _runner?.LatestVersion;
+                bool hasUpdate = !string.IsNullOrEmpty(installed)
+                                 && !string.IsNullOrEmpty(latest)
+                                 && !string.Equals(installed, latest, StringComparison.OrdinalIgnoreCase);
+                _updateDialog.Title = hasUpdate
+                    ? ResourceHelper.GetString("Update.Title", "DSH update available")
+                    : ResourceHelper.GetString("Update.UpToDateTitle", "DSH");
+                _updateDialog.Content = BuildDialogContent();
+            }
+            catch { }
+        }
+
+        /// <summary>重检/安装完成后，仅更新标题与版本信息行（不整树重建，避免弄丢正在显示的行内提示）。</summary>
+        private void TickUpToDateInPlace()
+        {
+            try
+            {
+                if (_updateDialog == null) return;
+                var installed = _runner?.InstalledVersion;
+                var latest = _runner?.LatestVersion;
+                bool hasUpdate = !string.IsNullOrEmpty(installed)
+                                 && !string.IsNullOrEmpty(latest)
+                                 && !string.Equals(installed, latest, StringComparison.OrdinalIgnoreCase);
+                _updateDialog.Title = hasUpdate
+                    ? ResourceHelper.GetString("Update.Title", "DSH update available")
+                    : ResourceHelper.GetString("Update.UpToDateTitle", "DSH");
+                if (_dialogInfoBlock != null && _dialogInfoBlock.Parent != null)
+                {
+                    _dialogInfoBlock.Text = hasUpdate
+                        ? $"DSH {installed} → {latest}"
+                        : string.Format(ResourceHelper.GetString("Update.UpToDate", "DSH {0} is up to date"), installed ?? "--");
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>构建当前版本的对话框内容（每次调用生成新的 StackPanel 与控件）。</summary>
+        private StackPanel BuildDialogContent()
+        {
+            var installed = _runner?.InstalledVersion;
+            var latest = _runner?.LatestVersion;
+            bool hasUpdate = !string.IsNullOrEmpty(installed)
+                             && !string.IsNullOrEmpty(latest)
+                             && !string.Equals(installed, latest, StringComparison.OrdinalIgnoreCase);
+
+            var stack = new StackPanel { Spacing = 10 };
+
+            var info = new TextBlock
+            {
+                Text = hasUpdate
+                    ? $"DSH {installed} → {latest}"
+                    : string.Format(ResourceHelper.GetString("Update.UpToDate", "DSH {0} is up to date"), installed ?? "--"),
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            };
+            stack.Children.Add(info);
+            _dialogInfoBlock = info; // 供重检/安装后原地更新，避免整树重建弄丢提示
+
+            if (hasUpdate)
+            {
+                // 升级前自动备份 ~/.dsh（格式可能随版本变化），并在界面提示用户
+                var backupNote = new TextBlock
+                {
+                    Text = ResourceHelper.GetString("Update.BackupNote",
+                        "⚠ Updating may change your ~/.dsh config format. Your ~/.dsh is backed up automatically before install."),
+                    FontSize = 11,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xB2, 0x6A, 0x00)),
+                    TextWrapping = TextWrapping.Wrap
+                };
+                stack.Children.Add(backupNote);
+
+                string BuildCmd() => Installer.BuildCommand(
+                    latest,
+                    _useMirror ? (string.IsNullOrWhiteSpace(_mirrorUrl) ? _MirrorDefault : _mirrorUrl.Trim()) : null,
+                    _verboseLogs);
+                var box = new TextBox
+                {
+                    Text = BuildCmd(),
+                    IsReadOnly = true,
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    MinHeight = 48
+                };
+                stack.Children.Add(box);
+
+                // 选项行：journaux (verbose) / utiliser le miroir 并排
+                var optionsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+                var verboseToggle = new ToggleSwitch
+                {
+                    Header = ResourceHelper.GetString("Update.Verbose", "Full logs (verbose)"),
+                    OffContent = "",
+                    OnContent = ""
+                };
+                verboseToggle.Toggled += (s2, e2) =>
+                {
+                    _verboseLogs = verboseToggle.IsOn;
+                    box.Text = BuildCmd();
+                };
+                optionsRow.Children.Add(verboseToggle);
+
+                // 镜像开关：切换/编辑时重建命令
+                var mirrorToggle = new ToggleSwitch
+                {
+                    Header = ResourceHelper.GetString("Update.Mirror", "Use mirror"),
+                    OffContent = "",
+                    OnContent = ""
+                };
+                var mirrorInput = new TextBox
+                {
+                    Text = _mirrorUrl, FontSize = 12,
+                    Visibility = Visibility.Collapsed,
+                    PlaceholderText = "https://registry.npmmirror.com"
+                };
+                mirrorToggle.Toggled += (s2, e2) =>
+                {
+                    _useMirror = mirrorToggle.IsOn;
+                    mirrorInput.Visibility = _useMirror ? Visibility.Visible : Visibility.Collapsed;
+                    box.Text = BuildCmd();
+                };
+                optionsRow.Children.Add(mirrorToggle);
+                stack.Children.Add(optionsRow);
+                mirrorInput.TextChanged += (s2, tx) =>
+                {
+                    _useMirror = mirrorToggle.IsOn;
+                    _mirrorUrl = mirrorInput.Text;
+                    box.Text = BuildCmd();
+                };
+                stack.Children.Add(mirrorInput);
+
+                var copyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                var copyBtn = new Button { Content = ResourceHelper.GetString("Update.Copy", "Copy command") };
+                copyBtn.Click += (s2, e2) =>
+                {
+                    if (ThrottleClick(800)) return; // 防连点
+                    var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                    data.SetText(box.Text);
+                    Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+                    ShowTransientTooltip(copyRow, copyBtn, ResourceHelper.GetString("Update.Copied", "Copied ✓"));
+                };
+                copyRow.Children.Add(copyBtn);
+                stack.Children.Add(copyRow);
+
+                // App 内安装：先备份 ~/.dsh，再用 --loglevel=silly 最全日志流式安装，结果实时回显到 logBox
+                // 会拉起 npm/cmd 进程，单独放一段（前面加分隔线）
+                stack.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
+                {
+                    Height = 1,
+                    Fill = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xE0, 0xE0, 0xE0)),
+                    Margin = new Thickness(0, 4, 0, 4)
+                });
+                var installRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                var installBtn = new Button
+                {
+                    Content = ResourceHelper.GetString("Update.InstallNow", "Install now (in-app)")
+                };
+                var logBox = new TextBox
+                {
+                    IsReadOnly = true, TextWrapping = TextWrapping.Wrap,
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"), FontSize = 11,
+                    MinHeight = 120, MaxHeight = 180, AcceptsReturn = true,
+                    Visibility = Visibility.Collapsed
+                };
+                installBtn.Click += (s2, e2) =>
+                {
+                    if (ThrottleClick(1000) || !installBtn.IsEnabled) return; // 防连点 + 正在安装
+                    installBtn.IsEnabled = false;
+                    copyBtn.IsEnabled = false;
+                    logBox.Visibility = Visibility.Visible;
+                    logBox.Text = "";
+                    var ct = new System.Threading.CancellationTokenSource();
+                    _ = Task.Run(async () =>
+                    {
+                        await Updater.RunUpdateAsync(
+                            latest,
+                            _useMirror ? (string.IsNullOrWhiteSpace(_mirrorUrl) ? _MirrorDefault : _mirrorUrl.Trim()) : null,
+                            line =>
+                            {
+                                DispatcherQueue.TryEnqueue(() =>
+                                {
+                                    logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + line;
+                                });
+                            }, ct.Token);
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            installBtn.IsEnabled = true;
+                            copyBtn.IsEnabled = true;
+                            if (_runner != null) _ = _runner.RefreshDshVersionAsync(checkLatest: true);
+                            DispatcherQueue.TryEnqueue(() => ApplyVersionLabel(GetShellVersion()));
+                            // 原地更新 info 与标题，不整树重建（避免弄丢正在显示的提示）
+                            TickUpToDateInPlace();
+                        });
+                    });
+                };
+                installRow.Children.Add(installBtn);
+                stack.Children.Add(installRow);
+                stack.Children.Add(logBox);
+            }
+
+            var recheckRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var refreshBtn = new Button { Content = ResourceHelper.GetString("Update.Recheck", "Re-check") };
+            refreshBtn.Click += async (s2, e2) =>
+            {
+                if (ThrottleClick(800)) return; // 防连点
+                if (!refreshBtn.IsEnabled) return;
+                refreshBtn.IsEnabled = false;
+                if (_runner != null)
+                {
+                    await _runner.RefreshDshVersionAsync(checkLatest: true);
+                }
+                refreshBtn.IsEnabled = true;
+                DispatcherQueue.TryEnqueue(() => ApplyVersionLabel(GetShellVersion()));
+                var found = _runner?.LatestVersion;
+                var inst = _runner?.InstalledVersion;
+                string feedback;
+                if (string.IsNullOrEmpty(found))
+                {
+                    feedback = ResourceHelper.GetString("Update.RecheckFail", "Re-check failed (offline?)");
+                }
+                else if (!string.IsNullOrEmpty(inst) && !string.Equals(inst, found, StringComparison.OrdinalIgnoreCase))
+                {
+                    feedback = string.Format(ResourceHelper.GetString("Update.RecheckNew", "Checked — a new version {0} is available"), found);
+                }
+                else
+                {
+                    feedback = string.Format(ResourceHelper.GetString("Update.RecheckSame", "Checked — {0} is already the latest"), found);
+                }
+                // 先更新版本行/标题（不整树重建，保住 tip），再在按钮右侧弹提示
+                TickUpToDateInPlace();
+                ShowTransientTooltip(recheckRow, refreshBtn, feedback);
+            };
+            recheckRow.Children.Add(refreshBtn);
+            stack.Children.Add(recheckRow);
+
+            return stack;
+        }
+
+        /// <summary>
+        /// 在 host 容器里 target（按钮）的右侧原位插入一个小提示文字，约 3s 后移除。
+        /// 纯 UI 元素（非 ToolTip/TeachingTip）：在 ContentDialog 里 100% 可靠、无 popup 关闭回调、不会闪退。
+        /// host 通常是按钮所在的行 StackPanel（Orientation=Horizontal），因此 tip 会出现在按钮右边。
+        /// </summary>
+        private void ShowTransientTooltip(Panel host, FrameworkElement target, string text)
+        {
+            if (host == null || target == null) return;
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                TextBlock? tip = null;
+                try
+                {
+                    tip = new TextBlock
+                    {
+                        Text = text,
+                        FontSize = 11,
+                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x00, 0x72, 0x33)),
+                        Margin = new Thickness(4, 0, 0, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    int idx = host.Children.IndexOf(target);
+                    host.Children.Insert(Math.Max(0, idx) + 1, tip);
+                    await Task.Delay(3000); // 停留 3s，足够看清消息
+                    if (host.Children.Contains(tip))
+                    {
+                        host.Children.Remove(tip);
+                    }
+                }
+                catch
+                {
+                    try { if (tip != null && host.Children.Contains(tip)) host.Children.Remove(tip); } catch { }
+                }
             });
+        }
+
+        // 防连点：上次点击时间戳，小于 minMs 间隔的点击被忽略（copier/reverifier 共用）
+        private DateTime _lastToggleClick;
+
+        private bool ThrottleClick(double minMs)
+        {
+            var now = DateTime.UtcNow;
+            if ((now - _lastToggleClick).TotalMilliseconds < minMs) return true; // 忽略
+            _lastToggleClick = now;
+            return false;
         }
 
         // 统一的更新状态方法：标题栏短状态 + 状态栏详细消息（超长省略，悬停显示全文）

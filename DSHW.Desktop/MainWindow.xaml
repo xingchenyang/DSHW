@@ -56,13 +56,15 @@
                        FontSize="11"
                        TextTrimming="CharacterEllipsis"/>
 
-            <TextBlock Grid.Column="1"
-                       x:Name="VersionText"
-                       Text="DSHW 0.1.0 · DSH --"
-                       Margin="12,0,16,0"
-                       VerticalAlignment="Center"
-                       Foreground="#999999"
-                       FontSize="11"/>
+            <Button Grid.Column="1"
+                    x:Name="VersionText"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="12,0,16,0"
+                    VerticalAlignment="Center"
+                    Content="DSHW 0.1.0 · DSH --"
+                    Foreground="#999999"
+                    FontSize="11"
+                    Click="OnVersionClick"/>
         </Grid>
     </Grid>
 </Window>

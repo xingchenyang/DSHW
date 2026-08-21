@@ -96,6 +96,88 @@
   <data name="Dialog.Error" xml:space="preserve">
     <value>Error</value>
   </data>
+  <data name="Dialog.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  
+  <!-- 安装引导 -->
+  <data name="Install.Title" xml:space="preserve">
+    <value>DSH not installed</value>
+  </data>
+  <data name="Install.Header" xml:space="preserve">
+    <value>DSH is not installed</value>
+  </data>
+  <data name="Install.Desc" xml:space="preserve">
+    <value>Install @deepseek-ai/dsh to continue. Copy the command to run it yourself, or install right here.</value>
+  </data>
+  <data name="Install.Copy" xml:space="preserve">
+    <value>Copy command</value>
+  </data>
+  <data name="Install.InstallNow" xml:space="preserve">
+    <value>Install now</value>
+  </data>
+  <data name="Install.Recheck" xml:space="preserve">
+    <value>Re-check</value>
+  </data>
+  <data name="Install.Succeeded" xml:space="preserve">
+    <value>Install finished</value>
+  </data>
+  <data name="Install.Failed" xml:space="preserve">
+    <value>Install failed or cancelled</value>
+  </data>
+  <data name="Install.Checking" xml:space="preserve">
+    <value>Checking DSH installation...</value>
+  </data>
+  <data name="Install.Detected" xml:space="preserve">
+    <value>detected</value>
+  </data>
+  <data name="Install.StillMissing" xml:space="preserve">
+    <value>DSH still not detected</value>
+  </data>
+  <data name="Install.BackupNote" xml:space="preserve">
+    <value>⚠ Before updating, your ~/.dsh folder is backed up automatically.</value>
+  </data>
+  
+  <!-- 更新提示 -->
+  <data name="Update.Title" xml:space="preserve">
+    <value>DSH update available</value>
+  </data>
+  <data name="Update.Copy" xml:space="preserve">
+    <value>Copy command</value>
+  </data>
+  <data name="Update.Copied" xml:space="preserve">
+    <value>Copied ✓</value>
+  </data>
+  <data name="Update.RecheckNew" xml:space="preserve">
+    <value>Checked — a new version {0} is available</value>
+  </data>
+  <data name="Update.RecheckSame" xml:space="preserve">
+    <value>Checked — {0} is already the latest</value>
+  </data>
+  <data name="Update.RecheckFail" xml:space="preserve">
+    <value>Re-check failed (offline?)</value>
+  </data>
+  <data name="Update.UpToDateTitle" xml:space="preserve">
+    <value>DSH</value>
+  </data>
+  <data name="Update.UpToDate" xml:space="preserve">
+    <value>DSH {0} is up to date</value>
+  </data>
+  <data name="Update.Recheck" xml:space="preserve">
+    <value>Re-check</value>
+  </data>
+  <data name="Update.Verbose" xml:space="preserve">
+    <value>Full logs (verbose)</value>
+  </data>
+  <data name="Update.Mirror" xml:space="preserve">
+    <value>Use mirror</value>
+  </data>
+  <data name="Update.InstallNow" xml:space="preserve">
+    <value>Install now (in-app)</value>
+  </data>
+  <data name="Update.BackupNote" xml:space="preserve">
+    <value>⚠ Updating may change your ~/.dsh config format. Your ~/.dsh is backed up automatically before install.</value>
+  </data>
   
   <!-- 通知 -->
   <data name="Notification.DSHStarted" xml:space="preserve">

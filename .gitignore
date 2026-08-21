@@ -45,3 +45,6 @@ npm-debug.log*
 
 # WebView2 cache
 WebView2/
+
+# Tool scratch space (not committed)
+.tools/

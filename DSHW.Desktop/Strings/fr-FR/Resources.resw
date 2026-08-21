@@ -96,6 +96,88 @@
   <data name="Dialog.Error" xml:space="preserve">
     <value>Erreur</value>
   </data>
+  <data name="Dialog.Close" xml:space="preserve">
+    <value>Fermer</value>
+  </data>
+  
+  <!-- 安装引导 -->
+  <data name="Install.Title" xml:space="preserve">
+    <value>DSH non installé</value>
+  </data>
+  <data name="Install.Header" xml:space="preserve">
+    <value>DSH n'est pas installé</value>
+  </data>
+  <data name="Install.Desc" xml:space="preserve">
+    <value>Installez @deepseek-ai/dsh pour continuer. Copiez la commande pour l'exécuter vous-même, ou installez directement ici.</value>
+  </data>
+  <data name="Install.Copy" xml:space="preserve">
+    <value>Copier la commande</value>
+  </data>
+  <data name="Install.InstallNow" xml:space="preserve">
+    <value>Installer maintenant</value>
+  </data>
+  <data name="Install.Recheck" xml:space="preserve">
+    <value>Revérifier</value>
+  </data>
+  <data name="Install.Succeeded" xml:space="preserve">
+    <value>Installation terminée</value>
+  </data>
+  <data name="Install.Failed" xml:space="preserve">
+    <value>Échec de l'installation ou annulée</value>
+  </data>
+  <data name="Install.Checking" xml:space="preserve">
+    <value>Vérification de l'installation de DSH...</value>
+  </data>
+  <data name="Install.Detected" xml:space="preserve">
+    <value>détecté</value>
+  </data>
+  <data name="Install.StillMissing" xml:space="preserve">
+    <value>DSH toujours introuvable</value>
+  </data>
+  <data name="Install.BackupNote" xml:space="preserve">
+    <value>⚠ Avant la mise à jour, votre dossier ~/.dsh est sauvegardé automatiquement.</value>
+  </data>
+  
+  <!-- 更新提示 -->
+  <data name="Update.Title" xml:space="preserve">
+    <value>Mise à jour DSH disponible</value>
+  </data>
+  <data name="Update.Copy" xml:space="preserve">
+    <value>Copier la commande</value>
+  </data>
+  <data name="Update.Copied" xml:space="preserve">
+    <value>Copié ✓</value>
+  </data>
+  <data name="Update.RecheckNew" xml:space="preserve">
+    <value>Vérifié — une nouvelle version {0} est disponible</value>
+  </data>
+  <data name="Update.RecheckSame" xml:space="preserve">
+    <value>Vérifié — {0} est déjà à jour</value>
+  </data>
+  <data name="Update.RecheckFail" xml:space="preserve">
+    <value>Vérification échouée (hors ligne ?)</value>
+  </data>
+  <data name="Update.UpToDateTitle" xml:space="preserve">
+    <value>DSH</value>
+  </data>
+  <data name="Update.UpToDate" xml:space="preserve">
+    <value>DSH {0} est à jour</value>
+  </data>
+  <data name="Update.Recheck" xml:space="preserve">
+    <value>Revérifier</value>
+  </data>
+  <data name="Update.Verbose" xml:space="preserve">
+    <value>Journaux complets (verbose)</value>
+  </data>
+  <data name="Update.Mirror" xml:space="preserve">
+    <value>Utiliser le miroir</value>
+  </data>
+  <data name="Update.InstallNow" xml:space="preserve">
+    <value>Installer maintenant (app)</value>
+  </data>
+  <data name="Update.BackupNote" xml:space="preserve">
+    <value>⚠ La mise à jour peut modifier le format de ~/.dsh. Votre dossier ~/.dsh est sauvegardé automatiquement.</value>
+  </data>
   
   <!-- 通知 -->
   <data name="Notification.DSHStarted" xml:space="preserve">

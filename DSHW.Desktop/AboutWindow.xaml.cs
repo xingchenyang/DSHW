@@ -58,10 +58,21 @@ namespace DSHW.Desktop
                 }
             }
 
-            VersionText.Text = $"DSHW {GetShellVersion()} · DSH {(string.IsNullOrEmpty(dshVersion) ? "--" : dshVersion)}";
+            VersionText.Text = BuildVersionText(dshVersion);
             TaglineText.Text = ResourceHelper.GetString("About.Tagline", "DSH Workbench for Windows");
             DescriptionText.Text = ResourceHelper.GetString("About.Description", "A WinUI 3 + WebView2 desktop client for DSH.");
             CopyrightText.Text = ResourceHelper.GetString("About.Copyright", "Copyright © 2026 xingchenyang · MIT License");
+        }
+
+        /// <summary>重新打开/刷新时更新 DSH 版本显示。</summary>
+        public void UpdateDshVersion(string? dshVersion)
+        {
+            VersionText.Text = BuildVersionText(dshVersion);
+        }
+
+        private static string BuildVersionText(string? dshVersion)
+        {
+            return $"DSHW {GetShellVersion()} · DSH {(string.IsNullOrEmpty(dshVersion) ? "--" : dshVersion)}";
         }
 
         private static string GetShellVersion()

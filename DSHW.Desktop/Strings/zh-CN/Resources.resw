@@ -96,6 +96,88 @@
   <data name="Dialog.Error" xml:space="preserve">
     <value>错误</value>
   </data>
+  <data name="Dialog.Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  
+  <!-- 安装引导 -->
+  <data name="Install.Title" xml:space="preserve">
+    <value>DSH 未安装</value>
+  </data>
+  <data name="Install.Header" xml:space="preserve">
+    <value>检测到 DSH 未安装</value>
+  </data>
+  <data name="Install.Desc" xml:space="preserve">
+    <value>需要先安装 @deepseek-ai/dsh 才能继续。可以复制命令自行安装，也可以直接在这里安装。</value>
+  </data>
+  <data name="Install.Copy" xml:space="preserve">
+    <value>复制命令</value>
+  </data>
+  <data name="Install.InstallNow" xml:space="preserve">
+    <value>立即安装</value>
+  </data>
+  <data name="Install.Recheck" xml:space="preserve">
+    <value>重新检测</value>
+  </data>
+  <data name="Install.Succeeded" xml:space="preserve">
+    <value>安装完成</value>
+  </data>
+  <data name="Install.Failed" xml:space="preserve">
+    <value>安装失败或已取消</value>
+  </data>
+  <data name="Install.Checking" xml:space="preserve">
+    <value>正在检测 DSH 安装...</value>
+  </data>
+  <data name="Install.Detected" xml:space="preserve">
+    <value>已检测到</value>
+  </data>
+  <data name="Install.StillMissing" xml:space="preserve">
+    <value>仍未检测到 DSH</value>
+  </data>
+  <data name="Install.BackupNote" xml:space="preserve">
+    <value>⚠ 更新前会自动备份 ~/.dsh 目录。</value>
+  </data>
+  
+  <!-- 更新提示 -->
+  <data name="Update.Title" xml:space="preserve">
+    <value>DSH 有可用更新</value>
+  </data>
+  <data name="Update.Copy" xml:space="preserve">
+    <value>复制命令</value>
+  </data>
+  <data name="Update.Copied" xml:space="preserve">
+    <value>已复制 ✓</value>
+  </data>
+  <data name="Update.RecheckNew" xml:space="preserve">
+    <value>已检查 — 有新版本 {0} 可用</value>
+  </data>
+  <data name="Update.RecheckSame" xml:space="preserve">
+    <value>已检查 — {0} 已是最新版本</value>
+  </data>
+  <data name="Update.RecheckFail" xml:space="preserve">
+    <value>重新检测失败（离线？）</value>
+  </data>
+  <data name="Update.UpToDateTitle" xml:space="preserve">
+    <value>DSH</value>
+  </data>
+  <data name="Update.UpToDate" xml:space="preserve">
+    <value>DSH {0} 已是最新版本</value>
+  </data>
+  <data name="Update.Recheck" xml:space="preserve">
+    <value>重新检测</value>
+  </data>
+  <data name="Update.Verbose" xml:space="preserve">
+    <value>完整日志（verbose）</value>
+  </data>
+  <data name="Update.Mirror" xml:space="preserve">
+    <value>使用镜像</value>
+  </data>
+  <data name="Update.InstallNow" xml:space="preserve">
+    <value>立即安装（应用内）</value>
+  </data>
+  <data name="Update.BackupNote" xml:space="preserve">
+    <value>⚠ 升级可能改变 ~/.dsh 配置格式。安装前会自动备份 ~/.dsh。</value>
+  </data>
   
   <!-- 通知 -->
   <data name="Notification.DSHStarted" xml:space="preserve">

@@ -27,13 +27,25 @@ namespace DSHW.Desktop.Core
 
         public event EventHandler<RunnerStatusEventArgs>? OnStatusChanged;
 
+        /// <summary>端口空闲且 Node 存在但 dsh 未安装时触发，供 UI 弹出安装引导。</summary>
+        public event EventHandler<string?>? OnDshNotInstalled;
+
         public bool IsRunning => _isRunning;
         public string WebUIUrl => _webUIUrl;
-        public string? DshVersion { get; private set; }
 
-        public Runner()
+        /// <summary>已安装的 DSH 版本（全局 npm ls；离线）。</summary>
+        public string? InstalledVersion { get; private set; }
+
+        /// <summary>registry 上最新 DSH 版本（在线；联网失败为 null）。</summary>
+        public string? LatestVersion { get; private set; }
+
+        private readonly DshDetector _detector = new();
+        private readonly AppConfig _config;
+
+        public Runner(AppConfig? config = null)
         {
             _webUIUrl = $"http://{_host}:{_port}";
+            _config = config ?? AppConfig.Load();
         }
 
         public async Task<bool> RunAsync()
@@ -66,8 +78,22 @@ namespace DSHW.Desktop.Core
                     return false;
                 }
 
-                // -y：npx 首次运行会自动确认安装（无 stdin 的进程里交互提示会失败导致 DSH 退出）
-                // 输出重定向到 %LOCALAPPDATA%\DSHW\dsh.log（单文件 exe 的 BaseDirectory 是临时解压目录，不可靠）
+                // 3) 检查 dsh 是否已安装；未装 → 触发安装引导（不启动），让 UI 决定后续
+                await _detector.RefreshAsync(checkLatest: false);
+                InstalledVersion = _detector.InstalledVersion;
+                if (!_detector.IsInstalled)
+                {
+                    OnStatusChanged?.Invoke(this, new RunnerStatusEventArgs
+                    {
+                        IsRunning = false,
+                        StatusMessage = "DSH is not installed"
+                    });
+                    OnDshNotInstalled?.Invoke(this, _detector.LatestVersion);
+                    return false; // 不启动；等 UI 装好后重新 RunAsync
+                }
+
+                // 4) 准备启动。输出重定向到 %LOCALAPPDATA%\DSHW\dsh.log
+                //    （单文件 exe 的 BaseDirectory 是临时解压目录，不可靠）
                 var logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DSHW");
                 string logPath;
                 try
@@ -80,10 +106,16 @@ namespace DSHW.Desktop.Core
                     logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dsh.log");
                 }
 
+                // 启动命令：默认 dsh web（离线、秒起）；仅当 appsettings 显式开启 AutoUpdate 才用 npx -y 自动升级
+                // -y：npx 首次运行会自动确认安装（无 stdin 的进程里交互提示会失败导致 DSH 退出）
+                var startCmd = _config.AutoUpdateOnStart
+                    ? "npx -y @deepseek-ai/dsh web"
+                    : "dsh web";
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/c npx -y @deepseek-ai/dsh web 1> \"{logPath}\" 2>&1",
+                    Arguments = $"/c {startCmd} 1> \"{logPath}\" 2>&1",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden
@@ -148,57 +180,14 @@ namespace DSHW.Desktop.Core
         }
 
         /// <summary>
-        /// 查询 DSH 版本：优先官方 npm registry（@deepseek-ai/dsh 最新版本），
-        /// 失败时回退本地 npx 解析的运行版本；都失败返回 null。
+        /// 刷新版本信息：已装版本（离线）+ 最新版本（在线，可选）。
+        /// installed / latest 分开语义（避免旧实现把 registry 最新版当成运行版本）。
         /// </summary>
-        public async Task<string?> GetDshVersionAsync()
+        public async Task RefreshDshVersionAsync(bool checkLatest)
         {
-            // 官方 npm registry（https://www.npmjs.com/package/@deepseek-ai/dsh）
-            var latest = await RunCommandOutputAsync("npm view @deepseek-ai/dsh version", TimeSpan.FromSeconds(30));
-            if (!string.IsNullOrEmpty(latest))
-            {
-                DshVersion = latest.Trim().Split('\n')[0].Trim();
-                return DshVersion;
-            }
-
-            // 回退：本地 npx 解析的运行版本
-            var running = await RunCommandOutputAsync("npx -y @deepseek-ai/dsh --version", TimeSpan.FromSeconds(60));
-            if (!string.IsNullOrEmpty(running))
-            {
-                DshVersion = running.Trim().Split('\n')[0].Trim();
-                return DshVersion;
-            }
-
-            DshVersion = null;
-            return null;
-        }
-
-        private static async Task<string?> RunCommandOutputAsync(string commandLine, TimeSpan timeout)
-        {
-            try
-            {
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c {commandLine}",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    }
-                };
-                process.Start();
-                using var cts = new CancellationTokenSource(timeout);
-                await process.WaitForExitAsync(cts.Token);
-                var output = await process.StandardOutput.ReadToEndAsync();
-                return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
-            }
-            catch
-            {
-                return null;
-            }
+            await _detector.RefreshAsync(checkLatest: checkLatest);
+            InstalledVersion = _detector.InstalledVersion;
+            LatestVersion = _detector.LatestVersion;
         }
 
         private async Task MonitorProcessAsync(CancellationToken token)

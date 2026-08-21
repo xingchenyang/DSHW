@@ -13,7 +13,7 @@ DSH Workbench for Windows
 
 - 🖥️ WinUI 3 原生 Windows 界面
 - 🌐 内置 WebView2
-- 🚀 一键启动 DSH Web
+- 🚀 一键启动 DSH Web（优先用全局已装的 `dsh` 命令，离线秒起；可选 npx 自动升级）
 - 🔍 Node.js / npm / dsh 环境检查
 - 🔄 dsh 版本检查与更新提示
 - ❤️ 本地服务健康检查

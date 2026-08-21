@@ -91,12 +91,21 @@ namespace DSHW.Desktop
         }
 
         private AboutWindow? _aboutWindow;
-        private void ShowAbout()
+        private async void ShowAbout()
         {
+            // 打开"关于"前先取一次最新版本（离线、快），避免显示 DSH -- 占位
+            if (_runner != null)
+            {
+                await _runner.RefreshDshVersionAsync(checkLatest: false);
+            }
             if (_aboutWindow == null)
             {
-                _aboutWindow = new AboutWindow(_runner?.DshVersion);
+                _aboutWindow = new AboutWindow(_runner?.InstalledVersion);
                 _aboutWindow.Closed += (s, e) => _aboutWindow = null;
+            }
+            else
+            {
+                _aboutWindow.UpdateDshVersion(_runner?.InstalledVersion);
             }
             _aboutWindow.Activate();
         }
