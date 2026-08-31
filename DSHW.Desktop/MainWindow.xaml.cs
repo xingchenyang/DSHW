@@ -434,27 +434,47 @@ namespace DSHW.Desktop
                     logBox.Visibility = Visibility.Visible;
                     logBox.Text = "";
                     var ct = new System.Threading.CancellationTokenSource();
+
+                    // 缓冲式日志：后台线程累加 StringBuilder，UI 每约 150ms 合并刷新一次，
+                    // 避免 silly 海量日志每行都全量重排 TextBox 而饿死 UI 线程（死机根因）。
+                    var sb = new System.Text.StringBuilder();
+                    System.Threading.Timer? flushTimer = new System.Threading.Timer(_ =>
+                    {
+                        lock (sb) { if (sb.Length > 0) { var s = sb.ToString(); sb.Clear(); DispatcherQueue.TryEnqueue(() => { try { logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + s; } catch { } }); } }
+                    }, null, 0, 150);
+
                     _ = Task.Run(async () =>
                     {
-                        await Updater.RunUpdateAsync(
-                            latest,
-                            _useMirror ? (string.IsNullOrWhiteSpace(_mirrorUrl) ? _MirrorDefault : _mirrorUrl.Trim()) : null,
-                            line =>
-                            {
-                                DispatcherQueue.TryEnqueue(() =>
-                                {
-                                    logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + line;
-                                });
-                            }, ct.Token);
-                        DispatcherQueue.TryEnqueue(() =>
+                        try
                         {
-                            installBtn.IsEnabled = true;
-                            copyBtn.IsEnabled = true;
-                            if (_runner != null) _ = _runner.RefreshDshVersionAsync(checkLatest: true);
-                            DispatcherQueue.TryEnqueue(() => ApplyVersionLabel(GetShellVersion()));
-                            // 原地更新 info 与标题，不整树重建（避免弄丢正在显示的提示）
-                            TickUpToDateInPlace();
-                        });
+                            await Updater.RunUpdateAsync(
+                                latest,
+                                _useMirror ? (string.IsNullOrWhiteSpace(_mirrorUrl) ? _MirrorDefault : _mirrorUrl.Trim()) : null,
+                                line => { lock (sb) { sb.AppendLine(line); } },
+                                ct.Token);
+                        }
+                        finally
+                        {
+                            // 收尾：停计时器并最后一次刷新剩余日志
+                            flushTimer?.Dispose();
+                            lock (sb)
+                            {
+                                if (sb.Length > 0)
+                                {
+                                    var s = sb.ToString();
+                                    sb.Clear();
+                                    DispatcherQueue.TryEnqueue(() => { try { logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + s; } catch { } });
+                                }
+                            }
+                            DispatcherQueue.TryEnqueue(() =>
+                            {
+                                installBtn.IsEnabled = true;
+                                copyBtn.IsEnabled = true;
+                                if (_runner != null) _ = _runner.RefreshDshVersionAsync(checkLatest: true);
+                                DispatcherQueue.TryEnqueue(() => ApplyVersionLabel(GetShellVersion()));
+                                TickUpToDateInPlace();
+                            });
+                        }
                     });
                 };
                 installRow.Children.Add(installBtn);

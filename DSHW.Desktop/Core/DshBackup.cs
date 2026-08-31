@@ -76,13 +76,35 @@ namespace DSHW.Desktop.Core
 
         private static void CopyDirectory(string src, string dest)
         {
-            Directory.CreateDirectory(dest);
-            foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
+            // 递归复制，但剪掉 node_modules 及常见缓存目录（可重建的构建产物，不该进备份，否则 0.x GB 级膨胀）
+            CopyDirRecursive(new DirectoryInfo(src), dest);
+        }
+
+        private static readonly string[] _skipDirs =
+        {
+            "node_modules",      // npm/依赖产物，可随时重新安装
+            "blob_storage",      // 缓存
+            "indexeddb",         // 浏览器/运行时缓存
+            "cache",             // 通用缓存
+            ".cache"
+        };
+
+        private static void CopyDirRecursive(DirectoryInfo dir, string destDir)
+        {
+            Directory.CreateDirectory(destDir);
+
+            foreach (var file in dir.GetFiles())
             {
-                var rel = Path.GetRelativePath(src, file);
-                var target = Path.Combine(dest, rel);
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                File.Copy(file, target, overwrite: true);
+                var target = Path.Combine(destDir, file.Name);
+                file.CopyTo(target, overwrite: true);
+            }
+
+            foreach (var sub in dir.GetDirectories())
+            {
+                // 命中剪枝名单的子目录：整棵跳过（node_modules 等可重建产物不入备份）
+                bool skip = Array.Exists(_skipDirs, n => string.Equals(n, sub.Name, StringComparison.OrdinalIgnoreCase));
+                if (skip) continue;
+                CopyDirRecursive(sub, Path.Combine(destDir, sub.Name));
             }
         }
     }

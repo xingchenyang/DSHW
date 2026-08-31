@@ -1,17 +1,16 @@
 ﻿<#
 .SYNOPSIS
-  一键发布 DSHW（完全版 / 单文件版 / Lite 文件夹），输出到浅层目录，无需打开 VS。
+  一键发布 DSHW（完全版 / Lite 文件夹），输出到浅层目录，无需打开 VS。
 
 .DESCRIPTION
-  输出目录：DSHW.Desktop\release\<variant>\（full / single / lite）
+  输出目录：DSHW.Desktop\release\<variant>\（full / lite）
   用法：
-    .\scripts\publish.ps1                 # 发布全部三个版本
-    .\scripts\publish.ps1 -Target full    # 只发布完全版（SCD 单文件，免装运行时）
-    .\scripts\publish.ps1 -Target single  # 单文件版（WinAppSDK 自包含，需 .NET 9）
+    .\scripts\publish.ps1                 # 发布全部（full + lite）
+    .\scripts\publish.ps1 -Target full    # 只发完全版（SCD 单文件，免装运行时）
     .\scripts\publish.ps1 -Target lite    # Lite 文件夹（需 .NET 9 + WinAppSDK Runtime）
 #>
 param(
-    [ValidateSet("all", "full", "single", "lite")]
+    [ValidateSet("all", "full", "lite")]
     [string]$Target = "all"
 )
 
@@ -64,11 +63,9 @@ function Publish-Variant {
 
 switch ($Target) {
     "full"   { Publish-Variant "完全版 (SCD 单文件, 目标机免装任何运行时)" "full" (Join-Path $outBase "full") }
-    "single" { Publish-Variant "单文件版 (WinAppSDK 自包含, 需 .NET 9 Runtime)" "single" (Join-Path $outBase "single") }
     "lite"   { Publish-Variant "Lite 文件夹 (FDD, 需 .NET 9 + WinAppSDK Runtime)" "lite" (Join-Path $outBase "lite") }
     default  {
         Publish-Variant "完全版 (SCD 单文件, 目标机免装任何运行时)" "full" (Join-Path $outBase "full")
-        Publish-Variant "单文件版 (WinAppSDK 自包含, 需 .NET 9 Runtime)" "single" (Join-Path $outBase "single")
         Publish-Variant "Lite 文件夹 (FDD, 需 .NET 9 + WinAppSDK Runtime)" "lite" (Join-Path $outBase "lite")
     }
 }

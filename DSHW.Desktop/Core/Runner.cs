@@ -107,10 +107,11 @@ namespace DSHW.Desktop.Core
                 }
 
                 // 启动命令：默认 dsh web（离线、秒起）；仅当 appsettings 显式开启 AutoUpdate 才用 npx -y 自动升级
+                // 加 --no-open：DSHW 用 WebView2 展示 UI，不让 dsh 再开默认浏览器（Edge）
                 // -y：npx 首次运行会自动确认安装（无 stdin 的进程里交互提示会失败导致 DSH 退出）
                 var startCmd = _config.AutoUpdateOnStart
-                    ? "npx -y @deepseek-ai/dsh web"
-                    : "dsh web";
+                    ? "npx -y @deepseek-ai/dsh web --no-open"
+                    : "dsh web --no-open";
 
                 var startInfo = new ProcessStartInfo
                 {

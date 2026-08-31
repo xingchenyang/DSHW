@@ -35,6 +35,10 @@
 4. PS `Restricted` 挡 `.ps1` shim：走 `cmd.exe /c <cmd>.cmd`。
 5. **ContentDialog 重入崩溃**（0xc000027b）：别 `Hide()`+`ShowAsync()` 重建；单实例 + 原地 `Content` 重建；打开前别 await 联网刷新（卡 UI）。
 6. **瞬显提示**：ToolTip `IsOpen` 定位不可靠、TeachingTip 会延迟闪退。用按钮行 StackPanel 右侧插 TextBlock，3s 后移除；重检后勿整树重建（会清掉提示）。
+7. **日志流 O(n²) 饿死 UI（实机死机）**：逐行 `TextBox.Text +=` 在 silly 海量日志下每行全量重排 → UI 忙循环 `Responding=False`。**修法：StringBuilder 缓冲（后台线程 append）+150ms 定时合并刷新一次**（MainWindow 安装日志、InstallGuideWindow.LogLine 均用此方案）。
+8. **升级时若 3080 有 dsh 在跑**：`npm install -g` 覆盖被正在运行的 node 加载的全局包 / `.dsh` 写入 → 冲突。Updater 已加 3080 监听探测 + log 警示（升级完需重启 DSHW 载入新版；不自动停服务以免打断 WebView2）。
+9. **备份勿拷 node_modules**：`~/.dsh` 下 profile 的 `node_modules` 是可重建构建产物（dsh 依赖 sharp/node-pty 等），全量复制会把备份从 80MB 撑到 400+MB。`DshBackup.CopyDirectory` 现递归剪枝 `node_modules`/`blob_storage`/`indexeddb`/`cache`/`.cache`，只保用户数据+配置。
+10. **scripts/*.ps1 必须带 UTF-8 BOM**：`*.bat` 用 `powershell`（Windows PowerShell 5.1）`-File` 调用，5.1 对**无 BOM 的 UTF-8 `.ps1` 按 ANSI/GBK 读** → 中文变乱码 `ÚÇÇÕç║...` → 引号被拆断 → ParserError。**修法：含中文的 `.ps1`（publish/kill-dsh/start-dsh）以 UTF-8 BOM 保存**。另外，**`.bat` 的 `echo` 中文可能乱码**（cmd 按系统代码页直接显示字节），故 **`.bat` 的回显/注释用英文 ASCII**（rebuild-lite 等已改）。校验：parse-check。
 
 ## 🧪 测试指引（进程清理安全）
 
@@ -42,16 +46,18 @@
 
 ## 📦 发布与脚本
 
-- 发布：`scripts/publish-lite.bat`（或 `publish.ps1 -Target lite`）→ `DSHW.Desktop\release\lite\`。
-- 体积：full 235.7MB / single 97.6MB / lite 38.6MB。
+- **快速重建**：`scripts/rebuild-lite.bat` 一条命令 = 退出 DSHW → 重发布 lite → 重启。
+- 发布：`publish-lite.bat` / `publish-full.bat`（`publish.ps1 -Target lite|full`）→ `DSHW.Desktop\release\<variant>\`；`publish-all.bat` = full+lite。
+- **`single` 已废弃**：`publish-single.bat`、`single.pubxml` 均已删；`publish.ps1` 只留 full/lite。
+- **full = 完整自包含单文件**（SelfContained .NET + WinAppSDK + WebView2，目标机只需 Win11），约 236MB / 单 exe。实测文件夹模式仅 218MB / 460 文件（省 ~7% 但散文件、启动久），故保持单文件换取便携。
+- **lite = 精简**（FDD），~39MB，需装 .NET9 + WinAppSDK Runtime + WebView2。
 - Lite 需整个文件夹（resources.pri 必需）；`kill-dsh.bat` 清 3080 残留；`start-dsh.bat` 手动启动。
 
 ## 📋 待办
 
-1. **下次做**：自动升级（0.1.1-rc 升级/降级）实机测试——含 `~/.dsh.bak` 备份、silly 流式安装、升级后降级回 0.1.0-rc.7。
-2. 当前全局 dsh 为 **0.1.0-rc.7**（用户手动装回）；0.1.1-rc.2 改了 `.credentials.yaml` 格式，已有备份护栏。
-3. 窗口位置/大小持久化。
-4. 正式分发再做 MSIX（需签名证书）。
+1. **下次做**：自动升级**复测**（已修日志流死机 bug + 升级时 3080 在跑警示 + `dsh web --no-open` 不再弹 Edge）。当前全局 dsh 已升到 **0.1.1-rc.2**；可测升级→降级回 0.1.0-rc.7，验证 `.dsh.bak` 备份/恢复。
+2. 窗口位置/大小持久化。
+3. 正式分发再做 MSIX（需签名证书）。
 
 ## 📎 链接
 

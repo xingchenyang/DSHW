@@ -16,6 +16,10 @@ namespace DSHW.Desktop.Core
         public static async Task<(bool success, string? backupPath, string message)> RunUpdateAsync(
             string? targetVersion, string? mirror, InstallOutputHandler log, CancellationToken cancellationToken = default)
         {
+            // 0) 提示：若 3080 已有 dsh 服务在跑，升级会覆盖其正在加载的全局包/锁定的进程，
+            //    建议升级完成后重启 DSHW 以载入新版。此处仅提示，不强制停止（停止会打断当前 WebView2）。
+            logWarningIfServiceRunning(log);
+
             // 1) 备份整个 ~/.dsh
             log("--- " + "Backing up ~/.dsh ..." + " ---");
             var backup = DshBackup.Create();
@@ -37,8 +41,36 @@ namespace DSHW.Desktop.Core
                 return (false, backup, "InstallFailed");
             }
 
-            log("Install succeeded.");
+            log("Install succeeded. Restart DSHW to load the new version.");
             return (true, backup, "Success");
+        }
+
+        /// <summary>若 3080 正被监听（有 dsh web 在跑），log 一行警示：升级会覆盖其加载的全局包，完成后需重启。</summary>
+        private static void logWarningIfServiceRunning(InstallOutputHandler log)
+        {
+            try
+            {
+                using var p = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "netstat.exe",
+                    Arguments = "-ano",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true
+                });
+                var outt = p?.StandardOutput.ReadToEnd();
+                if (p != null) p.WaitForExit(5000);
+                if (string.IsNullOrEmpty(outt)) return;
+                foreach (var line in outt.Split('\n'))
+                {
+                    if (line.Contains(":3080") && line.Contains("LISTENING"))
+                    {
+                        log("! A DSH web service is running (port 3080). npm install -g will overwrite the loaded global package; restart DSHW after the upgrade.");
+                        return;
+                    }
+                }
+            }
+            catch { }
         }
     }
 }

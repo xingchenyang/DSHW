@@ -26,6 +26,11 @@ namespace DSHW.Desktop
         // 选择器（避免引用 XAML forward 未定义字段编译报错——由 InitializeComponent 生成）
         private string? _installTargetVersion;
 
+        // 缓冲式日志：后台线程 append StringBuilder，UI 定时合并刷新，避免海量日志饿死 UI 线程
+        private readonly System.Text.StringBuilder _logSb = new();
+        private readonly object _logLock = new();
+        private System.Threading.Timer? _logTimer;
+
         public InstallGuideWindow(string? latestVersion)
         {
             this.InitializeComponent();
@@ -47,6 +52,29 @@ namespace DSHW.Desktop
             this.Closed += OnWindowClosing;
             LayoutWindow();
             UpdateCommandPreview();
+
+            // 每 150ms 合并刷新一次日志缓冲到 LogBox
+            _logTimer = new System.Threading.Timer(_ => FlushLogBuffer(), null, 0, 150);
+        }
+
+        private void FlushLogBuffer()
+        {
+            string pending;
+            lock (_logLock)
+            {
+                if (_logSb.Length == 0) return;
+                pending = _logSb.ToString();
+                _logSb.Clear();
+            }
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    LogBox.Text += (LogBox.Text.Length == 0 ? "" : "\n") + pending;
+                    LogScroll.ChangeView(null, LogScroll.ScrollableHeight, null);
+                }
+                catch { }
+            });
         }
 
         private void LayoutWindow()
@@ -146,11 +174,10 @@ namespace DSHW.Desktop
 
         private void LogLine(string line)
         {
-            DispatcherQueue.TryEnqueue(() =>
+            lock (_logLock)
             {
-                LogBox.Text += (LogBox.Text.Length == 0 ? "" : "\n") + line;
-                LogScroll.ChangeView(null, LogScroll.ScrollableHeight, null);
-            });
+                _logSb.AppendLine(line);
+            }
         }
 
         private void SetBusy(bool busy)
@@ -171,6 +198,8 @@ namespace DSHW.Desktop
         private void OnWindowClosing(object sender, WindowEventArgs args)
         {
             _installCts?.Cancel();
+            _logTimer?.Dispose();
+            FlushLogBuffer();
         }
     }
 }
