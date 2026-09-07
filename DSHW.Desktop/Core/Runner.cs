@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,7 +23,10 @@ namespace DSHW.Desktop.Core
         private bool _isRunning = false;
         private readonly string _host = "127.0.0.1";
         private readonly int _port = 3080;
-        private readonly string _webUIUrl;
+        private string _webUIUrl;
+        private readonly object _outputLock = new();
+        private StreamWriter? _logWriter;
+        private TaskCompletionSource<string> _webUIUrlReady = NewUrlReadySource();
         private bool _disposed = false;
         private CancellationTokenSource? _cts;
 
@@ -32,6 +37,9 @@ namespace DSHW.Desktop.Core
 
         public bool IsRunning => _isRunning;
         public string WebUIUrl => _webUIUrl;
+
+        private static TaskCompletionSource<string> NewUrlReadySource() =>
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>已安装的 DSH 版本（全局 npm ls；离线）。</summary>
         public string? InstalledVersion { get; private set; }
@@ -54,6 +62,8 @@ namespace DSHW.Desktop.Core
 
             try
             {
+                _webUIUrl = $"http://{_host}:{_port}";
+                _webUIUrlReady = NewUrlReadySource();
                 // 1) 端口已有服务 → 直接复用（不重复启动，避免 EADDRINUSE；退出时也不杀它）
                 if (await IsServiceAliveAsync())
                 {
@@ -113,17 +123,24 @@ namespace DSHW.Desktop.Core
                     ? "npx -y @deepseek-ai/dsh web --no-open"
                     : "dsh web --no-open";
 
+                _logWriter = new StreamWriter(logPath, append: false) { AutoFlush = true };
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/c {startCmd} 1> \"{logPath}\" 2>&1",
+                    Arguments = $"/c {startCmd}",
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
                 };
 
                 _dshProcess = new Process { StartInfo = startInfo };
+                _dshProcess.OutputDataReceived += OnDshOutput;
+                _dshProcess.ErrorDataReceived += OnDshOutput;
                 _dshProcess.Start();
+                _dshProcess.BeginOutputReadLine();
+                _dshProcess.BeginErrorReadLine();
                 _ownsProcess = true;
                 _isRunning = true;
 
@@ -140,6 +157,7 @@ namespace DSHW.Desktop.Core
             }
             catch (Exception ex)
             {
+                CloseLogWriter();
                 OnStatusChanged?.Invoke(this, new RunnerStatusEventArgs
                 {
                     IsRunning = false,
@@ -155,11 +173,48 @@ namespace DSHW.Desktop.Core
             var deadline = DateTime.UtcNow + timeout;
             while (DateTime.UtcNow < deadline)
             {
-                if (await IsServiceAliveAsync()) return true;
+                if (await IsServiceAliveAsync())
+                {
+                    // Newer DSH versions print an authenticated URL. Give redirected
+                    // output a short chance to arrive before WebView2 navigates.
+                    if (_ownsProcess && !_webUIUrlReady.Task.IsCompleted)
+                        await Task.WhenAny(_webUIUrlReady.Task, Task.Delay(3000));
+                    return true;
+                }
                 await Task.Delay(1000);
             }
             return await IsServiceAliveAsync();
         }
+
+        private void OnDshOutput(object sender, DataReceivedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(e.Data)) return;
+
+            lock (_outputLock)
+            {
+                try { _logWriter?.WriteLine(RedactToken(e.Data)); } catch { }
+            }
+
+            // Accept only this runner's loopback endpoint; never navigate WebView2
+            // to an arbitrary URL supplied in process output.
+            var match = Regex.Match(e.Data,
+                "https?://127\\.0\\.0\\.1:3080(?:/[^\\s<>\\\"']*)?",
+                RegexOptions.IgnoreCase);
+            if (!match.Success || !Uri.TryCreate(match.Value, UriKind.Absolute, out var uri)) return;
+            if (!string.Equals(uri.Host, _host, StringComparison.OrdinalIgnoreCase) || uri.Port != _port) return;
+
+            _webUIUrl = uri.AbsoluteUri;
+            _webUIUrlReady.TrySetResult(_webUIUrl);
+            OnStatusChanged?.Invoke(this, new RunnerStatusEventArgs
+            {
+                IsRunning = true,
+                Url = _webUIUrl,
+                StatusMessage = "DSH authentication URL received"
+            });
+        }
+
+        private static string RedactToken(string line) =>
+            Regex.Replace(line, "([?&]token=)[^&\\s<>\\\"']+", "$1[REDACTED]", RegexOptions.IgnoreCase);
 
         /// <summary>TCP 探测端口（127.0.0.1:3080）是否有服务监听。</summary>
         private async Task<bool> IsServiceAliveAsync()
@@ -326,8 +381,18 @@ namespace DSHW.Desktop.Core
                 }
             }
             _isRunning = false;
+            CloseLogWriter();
             _dshProcess = null;
             _ownsProcess = false;
+        }
+
+        private void CloseLogWriter()
+        {
+            lock (_outputLock)
+            {
+                try { _logWriter?.Dispose(); } catch { }
+                _logWriter = null;
+            }
         }
 
         private static void RunTaskKill(int pid, bool force)

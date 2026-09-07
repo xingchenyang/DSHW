@@ -28,6 +28,8 @@ DSH Workbench for Windows
 - WebView2 Runtime
 - `@deepseek-ai/dsh`
 
+当前唯一保证兼容的 DSH 版本：`v0.1.2-rc.1`，不保证向下兼容。
+
 ## 🚀 快速开始
 
 ```bash

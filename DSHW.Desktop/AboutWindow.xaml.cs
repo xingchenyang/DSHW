@@ -80,11 +80,11 @@ namespace DSHW.Desktop
             try
             {
                 var v = Assembly.GetExecutingAssembly().GetName().Version;
-                return v == null ? "0.1.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+                return v == null ? "0.1.1" : $"{v.Major}.{v.Minor}.{v.Build}";
             }
             catch
             {
-                return "0.1.0";
+                return "0.1.1";
             }
         }
     }

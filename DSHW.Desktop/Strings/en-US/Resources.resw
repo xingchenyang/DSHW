@@ -175,6 +175,15 @@
   <data name="Update.InstallNow" xml:space="preserve">
     <value>Install now (in-app)</value>
   </data>
+  <data name="Update.RestartNow" xml:space="preserve">
+    <value>Restart DSHW now</value>
+  </data>
+  <data name="Update.RestartFailed" xml:space="preserve">
+    <value>Unable to locate the DSHW executable.</value>
+  </data>
+  <data name="Update.RestartFailedWithReason" xml:space="preserve">
+    <value>Restart failed: {0}</value>
+  </data>
   <data name="Update.BackupNote" xml:space="preserve">
     <value>⚠ Updating may change your ~/.dsh config format. Your ~/.dsh is backed up automatically before install.</value>
   </data>

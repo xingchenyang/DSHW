@@ -61,7 +61,7 @@
                     Background="Transparent" BorderThickness="0"
                     Padding="12,0,16,0"
                     VerticalAlignment="Center"
-                    Content="DSHW 0.1.0 · DSH --"
+                    Content="DSHW 0.1.1 · DSH --"
                     Foreground="#999999"
                     FontSize="11"
                     Click="OnVersionClick"/>

@@ -175,6 +175,15 @@
   <data name="Update.InstallNow" xml:space="preserve">
     <value>Installer maintenant (app)</value>
   </data>
+  <data name="Update.RestartNow" xml:space="preserve">
+    <value>Redémarrer DSHW maintenant</value>
+  </data>
+  <data name="Update.RestartFailed" xml:space="preserve">
+    <value>Impossible de localiser l'exécutable DSHW.</value>
+  </data>
+  <data name="Update.RestartFailedWithReason" xml:space="preserve">
+    <value>Échec du redémarrage : {0}</value>
+  </data>
   <data name="Update.BackupNote" xml:space="preserve">
     <value>⚠ La mise à jour peut modifier le format de ~/.dsh. Votre dossier ~/.dsh est sauvegardé automatiquement.</value>
   </data>

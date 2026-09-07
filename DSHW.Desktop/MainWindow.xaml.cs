@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using Windows.Graphics;
@@ -112,6 +113,37 @@ namespace DSHW.Desktop
             Application.Current.Exit();     // 退出应用（清理托盘图标）
         }
 
+        /// <summary>更新完成后关闭当前 DSH/托盘，并从同一路径启动一个新实例。</summary>
+        private void RequestRestart()
+        {
+            var executablePath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(executablePath))
+            {
+                UpdateDetailStatus(ResourceHelper.GetString("Update.RestartFailed", "Unable to locate the DSHW executable."));
+                return;
+            }
+
+            try
+            {
+                _isExiting = true;
+                _runner?.Dispose(); // 必须先释放 3080，新实例才能启动新版 DSH 并取得认证 token
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = executablePath,
+                    UseShellExecute = true,
+                    WorkingDirectory = AppContext.BaseDirectory
+                });
+                AppWindowRef?.Destroy();
+                Application.Current.Exit();
+            }
+            catch (Exception ex)
+            {
+                _isExiting = false;
+                UpdateDetailStatus(string.Format(
+                    ResourceHelper.GetString("Update.RestartFailedWithReason", "Restart failed: {0}"), ex.Message));
+            }
+        }
+
         public void SetRunner(Runner runner)
         {
             _runner = runner;
@@ -150,11 +182,11 @@ namespace DSHW.Desktop
             try
             {
                 var v = Assembly.GetExecutingAssembly().GetName().Version;
-                return v == null ? "0.1.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+                return v == null ? "0.1.1" : $"{v.Major}.{v.Minor}.{v.Build}";
             }
             catch
             {
-                return "0.1.0";
+                return "0.1.1";
             }
         }
 
@@ -419,6 +451,12 @@ namespace DSHW.Desktop
                 {
                     Content = ResourceHelper.GetString("Update.InstallNow", "Install now (in-app)")
                 };
+                var restartBtn = new Button
+                {
+                    Content = ResourceHelper.GetString("Update.RestartNow", "Restart DSHW now"),
+                    Visibility = Visibility.Collapsed
+                };
+                restartBtn.Click += (s2, e2) => RequestRestart();
                 var logBox = new TextBox
                 {
                     IsReadOnly = true, TextWrapping = TextWrapping.Wrap,
@@ -426,6 +464,36 @@ namespace DSHW.Desktop
                     MinHeight = 120, MaxHeight = 180, AcceptsReturn = true,
                     Visibility = Visibility.Collapsed
                 };
+                ScrollViewer.SetVerticalScrollBarVisibility(logBox, ScrollBarVisibility.Auto);
+                ScrollViewer.SetHorizontalScrollBarVisibility(logBox, ScrollBarVisibility.Disabled);
+                ScrollViewer? logScroller = null;
+                logBox.Loaded += (s2, e2) =>
+                {
+                    logBox.ApplyTemplate();
+                    logScroller = FindVisualDescendant<ScrollViewer>(logBox);
+                };
+
+                void AppendLogAndScroll(string text)
+                {
+                    logScroller ??= FindVisualDescendant<ScrollViewer>(logBox);
+                    var previousOffset = logScroller?.VerticalOffset ?? 0;
+                    // 只有原本已在底部时才跟随新日志；用户向上翻阅后保留阅读位置。
+                    var followLatest = logScroller == null
+                        || logScroller.ScrollableHeight <= 0
+                        || previousOffset >= logScroller.ScrollableHeight - 2;
+
+                    logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + text.TrimEnd('\r', '\n');
+                    logBox.UpdateLayout();
+                    if (followLatest)
+                    {
+                        logScroller?.ChangeView(null, logScroller.ScrollableHeight, null, true);
+                    }
+                    else
+                    {
+                        // TextBox.Text 更新可能改变内部滚动位置，显式恢复用户正在看的位置。
+                        logScroller?.ChangeView(null, previousOffset, null, true);
+                    }
+                }
                 installBtn.Click += (s2, e2) =>
                 {
                     if (ThrottleClick(1000) || !installBtn.IsEnabled) return; // 防连点 + 正在安装
@@ -438,20 +506,22 @@ namespace DSHW.Desktop
                     // 缓冲式日志：后台线程累加 StringBuilder，UI 每约 150ms 合并刷新一次，
                     // 避免 silly 海量日志每行都全量重排 TextBox 而饿死 UI 线程（死机根因）。
                     var sb = new System.Text.StringBuilder();
+                    bool updateSucceeded = false;
                     System.Threading.Timer? flushTimer = new System.Threading.Timer(_ =>
                     {
-                        lock (sb) { if (sb.Length > 0) { var s = sb.ToString(); sb.Clear(); DispatcherQueue.TryEnqueue(() => { try { logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + s; } catch { } }); } }
+                        lock (sb) { if (sb.Length > 0) { var s = sb.ToString(); sb.Clear(); DispatcherQueue.TryEnqueue(() => { try { AppendLogAndScroll(s); } catch { } }); } }
                     }, null, 0, 150);
 
                     _ = Task.Run(async () =>
                     {
                         try
                         {
-                            await Updater.RunUpdateAsync(
+                            var result = await Updater.RunUpdateAsync(
                                 latest,
                                 _useMirror ? (string.IsNullOrWhiteSpace(_mirrorUrl) ? _MirrorDefault : _mirrorUrl.Trim()) : null,
                                 line => { lock (sb) { sb.AppendLine(line); } },
                                 ct.Token);
+                            updateSucceeded = result.success;
                         }
                         finally
                         {
@@ -463,13 +533,14 @@ namespace DSHW.Desktop
                                 {
                                     var s = sb.ToString();
                                     sb.Clear();
-                                    DispatcherQueue.TryEnqueue(() => { try { logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + s; } catch { } });
+                                    DispatcherQueue.TryEnqueue(() => { try { AppendLogAndScroll(s); } catch { } });
                                 }
                             }
                             DispatcherQueue.TryEnqueue(() =>
                             {
                                 installBtn.IsEnabled = true;
                                 copyBtn.IsEnabled = true;
+                                restartBtn.Visibility = updateSucceeded ? Visibility.Visible : Visibility.Collapsed;
                                 if (_runner != null) _ = _runner.RefreshDshVersionAsync(checkLatest: true);
                                 DispatcherQueue.TryEnqueue(() => ApplyVersionLabel(GetShellVersion()));
                                 TickUpToDateInPlace();
@@ -478,6 +549,7 @@ namespace DSHW.Desktop
                     });
                 };
                 installRow.Children.Add(installBtn);
+                installRow.Children.Add(restartBtn);
                 stack.Children.Add(installRow);
                 stack.Children.Add(logBox);
             }
@@ -518,6 +590,19 @@ namespace DSHW.Desktop
             stack.Children.Add(recheckRow);
 
             return stack;
+        }
+
+        private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
+        {
+            var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+            for (var i = 0; i < count; i++)
+            {
+                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+                if (child is T match) return match;
+                var nested = FindVisualDescendant<T>(child);
+                if (nested != null) return nested;
+            }
+            return null;
         }
 
         /// <summary>

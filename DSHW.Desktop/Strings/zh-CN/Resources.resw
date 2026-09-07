@@ -175,6 +175,15 @@
   <data name="Update.InstallNow" xml:space="preserve">
     <value>立即安装（应用内）</value>
   </data>
+  <data name="Update.RestartNow" xml:space="preserve">
+    <value>立即重启 DSHW</value>
+  </data>
+  <data name="Update.RestartFailed" xml:space="preserve">
+    <value>无法找到 DSHW 可执行文件。</value>
+  </data>
+  <data name="Update.RestartFailedWithReason" xml:space="preserve">
+    <value>重启失败：{0}</value>
+  </data>
   <data name="Update.BackupNote" xml:space="preserve">
     <value>⚠ 升级可能改变 ~/.dsh 配置格式。安装前会自动备份 ~/.dsh。</value>
   </data>
