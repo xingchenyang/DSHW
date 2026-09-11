@@ -4,6 +4,14 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，版本遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
+## [0.1.2] - 2026-09-11
+
+### Fixed
+
+- 修复应用内升级日志没有可见滚动条、无法自动跟随到底部的问题；用户上翻后仍保持阅读位置。
+- 降低大量 npm 日志刷新造成的 UI 卡顿，避免 UI 队列积压和整段日志反复复制。
+- 修复升级成功后的重启按钮可能在版本对话框中被横向裁掉的问题。
+
 ## [0.1.1] - 2026-09-07
 
 ### Added

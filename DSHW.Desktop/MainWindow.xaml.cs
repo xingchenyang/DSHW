@@ -446,7 +446,7 @@ namespace DSHW.Desktop
                     Fill = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xE0, 0xE0, 0xE0)),
                     Margin = new Thickness(0, 4, 0, 4)
                 });
-                var installRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                var installRow = new StackPanel { Spacing = 8 };
                 var installBtn = new Button
                 {
                     Content = ResourceHelper.GetString("Update.InstallNow", "Install now (in-app)")
@@ -457,41 +457,42 @@ namespace DSHW.Desktop
                     Visibility = Visibility.Collapsed
                 };
                 restartBtn.Click += (s2, e2) => RequestRestart();
-                var logBox = new TextBox
+                var logText = new TextBlock
                 {
-                    IsReadOnly = true, TextWrapping = TextWrapping.Wrap,
+                    TextWrapping = TextWrapping.Wrap,
                     FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"), FontSize = 11,
-                    MinHeight = 120, MaxHeight = 180, AcceptsReturn = true,
-                    Visibility = Visibility.Collapsed
+                    IsTextSelectionEnabled = true,
+                    Padding = new Thickness(8)
                 };
-                ScrollViewer.SetVerticalScrollBarVisibility(logBox, ScrollBarVisibility.Auto);
-                ScrollViewer.SetHorizontalScrollBarVisibility(logBox, ScrollBarVisibility.Disabled);
-                ScrollViewer? logScroller = null;
-                logBox.Loaded += (s2, e2) =>
+                var logScroller = new ScrollViewer
                 {
-                    logBox.ApplyTemplate();
-                    logScroller = FindVisualDescendant<ScrollViewer>(logBox);
+                    Content = logText,
+                    Height = 180,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Visibility = Visibility.Collapsed
                 };
 
                 void AppendLogAndScroll(string text)
                 {
-                    logScroller ??= FindVisualDescendant<ScrollViewer>(logBox);
-                    var previousOffset = logScroller?.VerticalOffset ?? 0;
+                    var previousOffset = logScroller.VerticalOffset;
                     // 只有原本已在底部时才跟随新日志；用户向上翻阅后保留阅读位置。
-                    var followLatest = logScroller == null
-                        || logScroller.ScrollableHeight <= 0
+                    var followLatest = logScroller.ScrollableHeight <= 0
                         || previousOffset >= logScroller.ScrollableHeight - 2;
 
-                    logBox.Text += (logBox.Text.Length == 0 ? "" : "\n") + text.TrimEnd('\r', '\n');
-                    logBox.UpdateLayout();
+                    var prefix = logText.Inlines.Count == 0 ? "" : "\n";
+                    logText.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run
+                    {
+                        Text = prefix + text.TrimEnd('\r', '\n')
+                    });
+                    logScroller.UpdateLayout();
                     if (followLatest)
                     {
-                        logScroller?.ChangeView(null, logScroller.ScrollableHeight, null, true);
+                        logScroller.ChangeView(null, logScroller.ScrollableHeight, null, true);
                     }
                     else
                     {
-                        // TextBox.Text 更新可能改变内部滚动位置，显式恢复用户正在看的位置。
-                        logScroller?.ChangeView(null, previousOffset, null, true);
+                        logScroller.ChangeView(null, previousOffset, null, true);
                     }
                 }
                 installBtn.Click += (s2, e2) =>
@@ -499,18 +500,31 @@ namespace DSHW.Desktop
                     if (ThrottleClick(1000) || !installBtn.IsEnabled) return; // 防连点 + 正在安装
                     installBtn.IsEnabled = false;
                     copyBtn.IsEnabled = false;
-                    logBox.Visibility = Visibility.Visible;
-                    logBox.Text = "";
+                    restartBtn.Visibility = Visibility.Collapsed;
+                    logScroller.Visibility = Visibility.Visible;
+                    logText.Inlines.Clear();
                     var ct = new System.Threading.CancellationTokenSource();
 
-                    // 缓冲式日志：后台线程累加 StringBuilder，UI 每约 150ms 合并刷新一次，
-                    // 避免 silly 海量日志每行都全量重排 TextBox 而饿死 UI 线程（死机根因）。
+                    // 后台只负责累加；由 UI 自己的定时器每 300ms 取一个批次。
+                    // 这样不会在 UI 忙时堆积 DispatcherQueue 回调，也不会反复复制整段日志。
                     var sb = new System.Text.StringBuilder();
                     bool updateSucceeded = false;
-                    System.Threading.Timer? flushTimer = new System.Threading.Timer(_ =>
+                    var flushTimer = DispatcherQueue.CreateTimer();
+                    flushTimer.Interval = TimeSpan.FromMilliseconds(300);
+                    flushTimer.Tick += (timer, args) =>
                     {
-                        lock (sb) { if (sb.Length > 0) { var s = sb.ToString(); sb.Clear(); DispatcherQueue.TryEnqueue(() => { try { AppendLogAndScroll(s); } catch { } }); } }
-                    }, null, 0, 150);
+                        string? pending = null;
+                        lock (sb)
+                        {
+                            if (sb.Length > 0)
+                            {
+                                pending = sb.ToString();
+                                sb.Clear();
+                            }
+                        }
+                        if (pending != null) AppendLogAndScroll(pending);
+                    };
+                    flushTimer.Start();
 
                     _ = Task.Run(async () =>
                     {
@@ -522,27 +536,32 @@ namespace DSHW.Desktop
                                 line => { lock (sb) { sb.AppendLine(line); } },
                                 ct.Token);
                             updateSucceeded = result.success;
+                            if (updateSucceeded && _runner != null)
+                            {
+                                // npm 已退出后再离线读取已安装版本，确保完成态一次性显示正确版本。
+                                await _runner.RefreshDshVersionAsync(checkLatest: false);
+                            }
                         }
                         finally
                         {
-                            // 收尾：停计时器并最后一次刷新剩余日志
-                            flushTimer?.Dispose();
-                            lock (sb)
-                            {
-                                if (sb.Length > 0)
-                                {
-                                    var s = sb.ToString();
-                                    sb.Clear();
-                                    DispatcherQueue.TryEnqueue(() => { try { AppendLogAndScroll(s); } catch { } });
-                                }
-                            }
+                            var succeeded = updateSucceeded;
                             DispatcherQueue.TryEnqueue(() =>
                             {
+                                flushTimer.Stop();
+                                string? pending = null;
+                                lock (sb)
+                                {
+                                    if (sb.Length > 0)
+                                    {
+                                        pending = sb.ToString();
+                                        sb.Clear();
+                                    }
+                                }
+                                if (pending != null) AppendLogAndScroll(pending);
                                 installBtn.IsEnabled = true;
                                 copyBtn.IsEnabled = true;
-                                restartBtn.Visibility = updateSucceeded ? Visibility.Visible : Visibility.Collapsed;
-                                if (_runner != null) _ = _runner.RefreshDshVersionAsync(checkLatest: true);
-                                DispatcherQueue.TryEnqueue(() => ApplyVersionLabel(GetShellVersion()));
+                                restartBtn.Visibility = succeeded ? Visibility.Visible : Visibility.Collapsed;
+                                ApplyVersionLabel(GetShellVersion());
                                 TickUpToDateInPlace();
                             });
                         }
@@ -551,7 +570,7 @@ namespace DSHW.Desktop
                 installRow.Children.Add(installBtn);
                 installRow.Children.Add(restartBtn);
                 stack.Children.Add(installRow);
-                stack.Children.Add(logBox);
+                stack.Children.Add(logScroller);
             }
 
             var recheckRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -590,19 +609,6 @@ namespace DSHW.Desktop
             stack.Children.Add(recheckRow);
 
             return stack;
-        }
-
-        private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
-        {
-            var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
-            for (var i = 0; i < count; i++)
-            {
-                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
-                if (child is T match) return match;
-                var nested = FindVisualDescendant<T>(child);
-                if (nested != null) return nested;
-            }
-            return null;
         }
 
         /// <summary>
