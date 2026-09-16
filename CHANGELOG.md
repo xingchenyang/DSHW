@@ -4,6 +4,8 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，版本遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
+> 项目已于 2026-09-16 归档，`0.1.2` 为最终版本。
+
 ## [0.1.2] - 2026-09-11
 
 ### Fixed

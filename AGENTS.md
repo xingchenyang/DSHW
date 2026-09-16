@@ -4,7 +4,7 @@
 
 ## 范围
 
-- DSHW 是 WinUI 3、.NET 9 和 WebView2 构建的 Windows 桌面壳，当前应用版本为 `0.1.1`。
+- DSHW 是 WinUI 3、.NET 9 和 WebView2 构建的 Windows 桌面壳，最终应用版本为 `0.1.2`；项目已归档，不再维护。
 - 当前唯一保证兼容的 DeepSeek Harness 版本为 `v0.1.2-rc.1`，不保证向下兼容；不要自行承诺其他版本兼容性，必须先验证对应 CLI、认证和 profile 行为。
 - DSH 属于外部快速演进依赖；升级兼容性必须以实际 CLI 行为和启动输出验证，不要只依赖旧版本假设。
 - 保持 `README.md` 面向使用者且简洁。用户可见变化写入 `CHANGELOG.md`，架构、技术背景和接手状态写入 `DEVELOPMENT.md`。

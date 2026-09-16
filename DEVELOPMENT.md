@@ -5,11 +5,12 @@
 ## 当前状态
 
 - 当前版本：`0.1.2`。
+- 项目状态：已完成并归档；后续不再维护。
 - 技术栈：WinUI 3、.NET 9、WebView2；Unpackaged x64 应用。
 - 目标环境：Windows 10 1809+ / Windows 11。
 - 唯一保证兼容的 DSH：`v0.1.2-rc.1`，不保证向下兼容。
 - 测试构建：`DSHW.Desktop/release/lite`；发布前先退出 DSHW，避免 exe 被锁定。
-- 当前重点：Web token 认证、更新日志智能滚动、更新后一键重启。
+- 最终实现重点：Web token 认证、更新日志智能滚动、更新后一键重启。
 
 ## 代码地图
 
@@ -85,7 +86,7 @@ git diff --check
 - `scripts/publish-all.bat`：发布 lite 和 full 两种版本。
 - `scripts/kill-dsh.bat`、`start-dsh.bat`：安全清理和手动启动。
 
-## 发布检查
+## 最终版本发布检查
 
 1. 确定版本号和发布日期，更新 `CHANGELOG.md`、`DEVELOPMENT.md` 与 README 标题。
 2. 运行构建和 `git diff --check`，确认发布目录包含 `resources.pri`。
@@ -93,7 +94,9 @@ git diff --check
 4. 分别验证 lite/full 发布物、三语言资源和退出时的进程清理。
 5. 确认 `.tools/` 之外没有 Agent 生成的测试、截图、报告或诊断产物。
 
-## 维护流程
+## 历史维护流程（已停止）
+
+项目已归档，以下流程仅记录最终版本的历史维护方式，不再作为后续开发要求。
 
 1. 修改前阅读 `README.md`、本文件、`CHANGELOG.md` 和 `AGENTS.md`。
 2. 升级 DSH、.NET、WinUI 3 或 WebView2 时，以实际启动、认证和发布行为为准。

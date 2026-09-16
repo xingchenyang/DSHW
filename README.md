@@ -1,4 +1,4 @@
-# DSHW v0.1.2
+# DSHW v0.1.2（已归档）
 
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
@@ -6,6 +6,8 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](https://www.microsoft.com/windows)
 
 > 一个基于 WinUI 3、.NET 9 和 WebView2 的 Windows 桌面 Workbench，用于更方便地使用 DeepSeek Harness（DSH）。
+
+> 项目状态：已完成并归档，`v0.1.2` 为最终版本，后续不再维护。
 
 ## 特性
 
@@ -49,7 +51,7 @@ scripts/                        构建、发布、启动和安全清理脚本
 
 ## 快速开始
 
-在 Windows 开发环境中运行：
+如需在 Windows 开发环境中运行最终版本：
 
 ```powershell
 git clone https://github.com/xingchenyang/DSHW.git
